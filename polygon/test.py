@@ -9,17 +9,21 @@ def main():
     concavos = [[(2, 0), (2, 6), (7, 6), (7, 0), (5, 2)], [(2, 0), (4, 6), (9, 4), (6, 0), (5, 2)]]
     corretude_concavos = [[0, 0, 0, 1, 1], [0, 0, 0, 1, 1]]
 
-    for i, convex in enumerate(convexos):
-        for ponto, cor in zip(pontos, corretude_convexos[i]):
-            res = polygons.isInsideConvexPolygon(len(convex), convex, ponto)
-            if res != cor:
-                print('point %r is wrong for polygon %r' % (ponto, convex))
+    # for i, convex in enumerate(convexos):
+    #     for ponto, cor in zip(pontos, corretude_convexos[i]):
+    #         res = polygons.isInsideConvexPolygon(convex, ponto)
+    #         if res != cor:
+    #             print('point %r is wrong for polygon %r' % (ponto, convex))
+    #
+    # for i, concave in enumerate(concavos):
+    #     for ponto, cor in zip(pontos, corretude_concavos[i]):
+    #         res = polygons.isInsideConcavePolygon(concave, ponto)
+    #         if res != cor:
+    #             print('point %r is wrong for polygon %r' % (ponto, concave))
 
-    for i, concave in enumerate(concavos):
-        for ponto, cor in zip(pontos, corretude_concavos[i]):
-            res = polygons.isInsideConcavePolygon(len(concave), concave, ponto)
-            if res != cor:
-                print('point %r is wrong for polygon %r' % (ponto, concave))
+    for concave in concavos:
+        print(polygons.convexHull(concave))
+    # print(polygons.convexHull(concavos[1]))
 
 
 if __name__ == '__main__':

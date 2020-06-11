@@ -5,6 +5,8 @@
 //  Created by Márcio Sarroglia Pinho on 19/03/20.
 //  Copyright © 2020 Márcio Sarroglia Pinho. All rights reserved.
 //
+#define _USE_MATH_DEFINES
+
 #include <stdio.h>
 #include <math.h>
 #include <Python.h>
@@ -107,23 +109,28 @@ public:
     }
 
     /**
+     * Ângulo que este vetor faz com outro vetor.
+     * @param other Outro vetor
+     * @return Ângulo (em graus) entre este e outro vetor
+     */
+    int angle(Vetor other) {
+        double dotProduct = this->dot(other);
+        if(dotProduct == 0) {
+            return 90;
+        }
+
+        double thisModule = this->module();
+        double otherModule = other.module();
+        double thisAngle = acos(dotProduct/(thisModule * otherModule));
+        int thisDegreeAngle = (int)(thisAngle * 180) / M_PI;
+        return thisDegreeAngle;
+    }
+
+    /**
      * Imprime o vetor atual.
      */
     void print() {
         printf("(%0.2f, %0.2f, %0.2f)", x, y, z);
-    }
-    void imprime() {
-        printf("(%0.2f, %0.2f, %0.2f)", x, y, z);
-    }
-    void set(double x, double y)
-    {
-        this->x = x;
-        this->y = y;
-    }
-    void get (double &x, double &y)
-    {
-        x = this->x;
-        y = this->y;
     }
 };
 
@@ -284,39 +291,130 @@ int estaDentroConvexo(int num_vert, Vetor *vetores, Vetor ponto) {
 //------------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------//
 
+PyObject *convexHullCore(int n_points, Vetor *points) {
+
+    int lowestY = 2147483647;  // max int value
+    int startIndex = -1;
+    for(int i = 0; i < n_points; i++) {
+        if(points[i].y < lowestY) {
+            lowestY = i;
+            startIndex = i;
+        }
+    }
+    int n_newPoints = 1;
+    Vetor *new_points = (Vetor*)malloc(sizeof(Vetor) * n_points);
+    new_points[0] = points[startIndex];
+
+    int curIndex = startIndex;
+    int lastIndex = curIndex;
+
+    do {
+        int minAngle = 359;
+        int maxIndex = -1;
+        Vetor thisPoint = points[curIndex];
+        Vetor thisFarRight(100, 0);
+
+        for(int j = 0; j < n_points; j++) {
+            if(j == curIndex) {
+                continue;
+            }
+            Vetor thatPoint = points[j];
+            Vetor thatTransPoint(thatPoint.x - thisPoint.x, thatPoint.y - thisPoint.y);
+
+            int angle = thisFarRight.angle(thatTransPoint);
+            if(thatTransPoint.y < 0) {
+                angle += 180;
+            }
+
+            if(angle < minAngle) {
+                minAngle = angle;
+                maxIndex = j;
+            }
+        }
+        lastIndex = curIndex;
+        curIndex = maxIndex;
+        new_points[n_newPoints] = points[curIndex];
+        n_newPoints += 1;
+    } while((curIndex != startIndex) && (n_newPoints < n_points));
+
+    n_newPoints -= 1;  // last point will be the same as first
+
+    PyObject *new_polygon = PyList_New(n_newPoints);
+    for(int i = 0; i < n_newPoints; i++) {
+        PyObject *thisPoint = PyTuple_Pack(2, Py_BuildValue("d", new_points[i].x), Py_BuildValue("d", new_points[i].y));
+        PyList_SetItem(new_polygon, i, thisPoint);
+    }
+    free(new_points);
+//    free(checked);
+    return new_polygon;
+}
+
+
+static PyObject *convexHull(PyObject *self, PyObject *args) {
+    PyObject *p_pontos;
+
+    if (!PyArg_ParseTuple(
+        args, "O!",
+        &PyList_Type, &p_pontos
+    )) {
+        return NULL;
+    }
+
+    int num_vert = (int)PyList_Size(p_pontos);
+
+    Vetor *pontos = (Vetor*)malloc(sizeof(Vetor) * num_vert);
+    for(int i = 0; i < num_vert; i++) {
+        PyObject *item = PyList_GetItem(p_pontos, i);
+
+        double x = (double)PyFloat_AsDouble(PyTuple_GetItem(item, 0));
+        double y = (double)PyFloat_AsDouble(PyTuple_GetItem(item, 1));
+        int tuple_size = (int)PyTuple_Size(item);
+        double z = 0;
+        if(tuple_size > 2) {
+            z = (double)PyFloat_AsDouble(PyTuple_GetItem(item, 2));
+        }
+        pontos[i] = Vetor(x, y, z);
+    }
+
+    PyObject *novosPontos = convexHullCore(num_vert, pontos);
+    free(pontos);
+    return novosPontos;
+}
+
+
 static PyObject *commonCheckCode(PyObject *self, PyObject *args, bool concave) {
-    int num_vert;
     PyObject *p_pontos, *p_ponto;
 
     if (!PyArg_ParseTuple(
-        args, "iO!O!",
-        &num_vert,
+        args, "O!O!",
         &PyList_Type, &p_pontos,
         &PyTuple_Type, &p_ponto
     )) {
         return NULL;
     }
 
+    int num_vert = (int)PyList_Size(p_pontos);
+
     Vetor *pontos = (Vetor*)malloc(sizeof(Vetor) * num_vert);
     for(int i = 0; i < num_vert; i++) {
         PyObject *item = PyList_GetItem(p_pontos, i);
 
-        int x = (int)PyLong_AsLong(PyTuple_GetItem(item, 0));
-        int y = (int)PyLong_AsLong(PyTuple_GetItem(item, 1));
+        double x = (double)PyFloat_AsDouble(PyTuple_GetItem(item, 0));
+        double y = (double)PyFloat_AsDouble(PyTuple_GetItem(item, 1));
         int tuple_size = (int)PyTuple_Size(item);
-        int z = 0;
+        double z = 0;
         if(tuple_size > 2) {
-            z = (int)PyLong_AsLong(PyTuple_GetItem(item, 2));
+            z = (double)PyFloat_AsDouble(PyTuple_GetItem(item, 2));
         }
         pontos[i] = Vetor(x, y, z);
     }
 
-    int xp = (int)PyLong_AsLong(PyTuple_GetItem(p_ponto, 0));
-    int yp = (int)PyLong_AsLong(PyTuple_GetItem(p_ponto, 1));
-    int zp = 0;
+    double xp = (double)PyFloat_AsDouble(PyTuple_GetItem(p_ponto, 0));
+    double yp = (double)PyFloat_AsDouble(PyTuple_GetItem(p_ponto, 1));
+    double zp = 0;
     int tuple_size = (int)PyTuple_Size(p_ponto);
     if(tuple_size > 2) {
-        zp = (int)PyLong_AsLong(PyTuple_GetItem(p_ponto, 2));
+        zp = (double)PyFloat_AsDouble(PyTuple_GetItem(p_ponto, 2));
     }
     Vetor ponto(xp, yp, zp);
 
@@ -351,6 +449,9 @@ static PyMethodDef module_methods[] = {{
     }, {
     "isInsideConvexPolygon", isInsideConvexPolygon, METH_VARARGS,
     "Checks whether a point is inside a convex polygon"
+    }, {
+    "convexHull", convexHull, METH_VARARGS,
+    "Transforms a concave polygon into a convex polygon"
     },
     {NULL, NULL, 0, NULL}
 };
