@@ -9,7 +9,13 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <cstdlib>
+#include <vector>
 #include <Python.h>
+
+int compare_doubles(const void * a, const void * b) {
+  return (int)( *(double*)a - *(double*)b );
+}
 
 class Vetor {
 public:
@@ -122,7 +128,7 @@ public:
         double thisModule = this->module();
         double otherModule = other.module();
         double thisAngle = acos(dotProduct/(thisModule * otherModule));
-        int thisDegreeAngle = (int)(thisAngle * 180) / M_PI;
+        int thisDegreeAngle = (int)((thisAngle * 180.0) / M_PI);
         return thisDegreeAngle;
     }
 
@@ -163,10 +169,10 @@ public:
      * @return 1 se as retas se intersectam, 0 de outra forma
      */
     int intersects(Reta other) {
-        int o1 = this->angle(other.p1);
-        int o2 = this->angle(other.p2);
-        int o3 = other.angle(this->p1);
-        int o4 = other.angle(this->p2);
+        int o1 = (int)this->angle(other.p1);
+        int o2 = (int)this->angle(other.p2);
+        int o3 = (int)other.angle(this->p1);
+        int o4 = (int)other.angle(this->p2);
 
         // caso geral
         if(o1 != o2 && o3 != o4) {
@@ -207,21 +213,21 @@ public:
 /**
  * Verifica se um polígono é côncavo ou convexo.
  * @param num_vert Número de vértices do polígono
- * @param vetores Coordenadas dos vértices
+ * @param points Pontos do polígono
  * @return 1 se o polígono for convexo, 0 se for côncavo
  */
-int classificaPoligono(int num_vert, Vetor *vetores) {
+int isConvex(int n_points, Vetor *points) {
     int signal = 1;
 
-    for(int i = 0; i < num_vert; i++) {
+    for(int i = 0; i < n_points; i++) {
         int index[3] = {
-            ((i - 1) < 0) * (num_vert - 1) + ((i - 1) > 0) * (i - 1),
+            ((i - 1) < 0) * (n_points - 1) + ((i - 1) > 0) * (i - 1),
             i,
-            ((i + 1) < num_vert) * (i + 1) + ((i + 1) > num_vert) * 0
+            ((i + 1) < n_points) * (i + 1) + ((i + 1) > n_points) * 0
         };
 
-        Vetor a = vetores[index[1]] - vetores[index[0]];
-        Vetor b = vetores[index[1]] - vetores[index[2]];
+        Vetor a = points[index[1]] - points[index[0]];
+        Vetor b = points[index[1]] - points[index[2]];
 
         Vetor c1 = a.cross(b);
         int new_signal = c1.z >= 0? 1 : -1;
@@ -234,6 +240,7 @@ int classificaPoligono(int num_vert, Vetor *vetores) {
     return 1;
 }
 
+
 /**
  * Verifica se um Vetor está dentro de um polígono côncavo.
  * @param num_vert Número de vértices do polígono
@@ -241,7 +248,7 @@ int classificaPoligono(int num_vert, Vetor *vetores) {
  * @param Vetor Coordenada do Vetor
  * @return 1 se o Vetor estiver dentro do polígono, 0 se não
  */
-int estaDentroConcavo(int num_vert, Vetor *pontos, Vetor ponto) {
+int isInsideConcave(int num_vert, Vetor *pontos, Vetor ponto) {
     int inside = 0;
     for(int i = 0; i < num_vert; ++i) {
         Vetor v1 = pontos[i];
@@ -263,7 +270,7 @@ int estaDentroConcavo(int num_vert, Vetor *pontos, Vetor ponto) {
  * @param Vetor Coordenada do Vetor
  * @return 1 se o Vetor estiver dentro do polígono, 0 se não
  */
-int estaDentroConvexo(int num_vert, Vetor *vetores, Vetor ponto) {
+int isInsideConvex(int num_vert, Vetor *vetores, Vetor ponto) {
     int signal = 1;
 
     for(int i = 0; i < num_vert; i++) {
@@ -284,13 +291,117 @@ int estaDentroConvexo(int num_vert, Vetor *vetores, Vetor ponto) {
         }
     }
     return 1;
-
 }
 
+class Polygon {
+public:
+    int n_vertices;
+    Vetor *vertices;
+    bool isThisConvex;
+
+    Polygon(int n_vertices, Vetor *vertices) {
+        this->vertices = (Vetor*)malloc(sizeof(Vetor) * n_vertices);
+        for(int i = 0; i < n_vertices; i++) {
+            this->vertices[i] = vertices[i];
+        }
+        this->n_vertices = n_vertices;
+        this->isThisConvex = (bool)isConvex(this->n_vertices, this->vertices);
+    }
+
+    ~Polygon() {
+        free(this->vertices);
+    }
+};
+
+class Map {
+public:
+    int n_polygons;
+    Polygon *polygons;
+
+    int n_slabs;
+    double *slabs;
+    std::vector<std::vector<int>> slabsIndices;
+
+    Map(int n_polygons, Polygon *polygons) {
+        this->n_polygons = n_polygons;
+        this->polygons = (Polygon*)malloc(sizeof(Polygon) * this->n_polygons);
+        int n_vertices = 0;
+
+        for(int i = 0; i < this->n_polygons; i++) {
+            this->polygons[i] = polygons[i];
+            n_vertices += this->polygons[i].n_vertices;
+        }
+
+        std::vector<Vetor> limits;
+        this->slabs = (double*)malloc(sizeof(double) * n_vertices);
+        this->n_slabs = 0;
+        for(int i = 0; i < this->n_polygons; i++) {
+            Vetor current(0, 0);
+            for(int j = 0; j < this->polygons[i].n_vertices; j++) {
+                this->slabs[this->n_slabs] = this->polygons[i].vertices[j].y;
+                current.x = fmin(current.x, this->polygons[i].vertices[j].y);
+                current.y = fmax(current.y, this->polygons[i].vertices[j].y);
+                this->n_slabs += 1;
+            }
+            limits.push_back(current);
+        }
+        qsort(this->slabs, this->n_slabs, sizeof(double), compare_doubles);
+        for(int i = 0; i < this->n_slabs; i++) {
+            std::vector<int> thisIndices;
+            for(int j = 0; j < limits.size(); j++) {
+                if((this->slabs[i] >= limits[j].x) && (this->slabs[i] <= limits[j].y)) {
+                    thisIndices.push_back(j);
+                }
+            }
+            this->slabsIndices.push_back(thisIndices);
+        }
+    }
+
+    /**
+     * Checa se um ponto está dentro de um polígono desse mapa.
+     * @param point Ponto a ser checado
+     * @return NULL se o ponto não está dentro de nenhum polígono; ou um ponteiro para o
+     * polígono ao qual esse ponto está inserido
+     */
+    Polygon *checkInside(Vetor point) {
+        int index = -1;
+        for(int i = 0; i < this->n_slabs; i++) {
+            if(point.y >= this->slabs[i]) {
+                index = i;
+            }
+        }
+        if(index == -1) {
+            return NULL;
+        }
+        std::vector<int> indices = this->slabsIndices[index];
+        int res = 0;
+        for(int j = 0; j < indices.size(); j++) {
+            if(this->polygons[indices[j]].isThisConvex) {
+                res = isInsideConvex(this->polygons[indices[j]].n_vertices, this->polygons[indices[j]].vertices, point);
+            } else {
+                res = isInsideConcave(this->polygons[indices[j]].n_vertices, this->polygons[indices[j]].vertices, point);
+            }
+            if(res == 1) {
+                return &this->polygons[indices[j]];
+            }
+        }
+        return NULL;
+    }
+
+    ~Map() {
+        free(polygons);
+        free(this->slabs);
+    }
+};
+
 //------------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------//
 
+/**
+ * Implementa o algoritmo gift wrapping para calcular o convex hull.
+ * Começa pelo ponto mais abaixo, e procura os pontos subsequentes que possuem o menor ângulo com este vetor.
+ */
 PyObject *convexHullCore(int n_points, Vetor *points) {
 
     int lowestY = 2147483647;  // max int value
@@ -420,9 +531,9 @@ static PyObject *commonCheckCode(PyObject *self, PyObject *args, bool concave) {
 
     int isInside;
     if(concave) {
-        isInside = estaDentroConcavo(num_vert, &pontos[0], ponto);
+        isInside = isInsideConcave(num_vert, &pontos[0], ponto);
     } else {
-        isInside = estaDentroConvexo(num_vert, &pontos[0], ponto);
+        isInside = isInsideConvex(num_vert, &pontos[0], ponto);
     }
     free(pontos);
     return Py_BuildValue("i", isInside);
