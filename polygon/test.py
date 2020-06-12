@@ -9,6 +9,7 @@ def main():
     concavos = [[(2, 0), (2, 6), (7, 6), (7, 0), (5, 2)], [(2, 0), (4, 6), (9, 4), (6, 0), (5, 2)]]
     corretude_concavos = [[0, 0, 0, 1, 1], [0, 0, 0, 1, 1]]
 
+    # testa se um ponto está dentro de polígono côncavo/convexo
     # for i, convex in enumerate(convexos):
     #     for ponto, cor in zip(pontos, corretude_convexos[i]):
     #         res = polygons.isInsideConvexPolygon(convex, ponto)
@@ -21,9 +22,20 @@ def main():
     #         if res != cor:
     #             print('point %r is wrong for polygon %r' % (ponto, concave))
 
-    for concave in concavos:
-        print(polygons.convexHull(concave))
-    # print(polygons.convexHull(concavos[1]))
+    # testa convex hull
+    # for concave in concavos:
+    #     print(polygons.convexHull(concave))
+
+    some_polygons = [
+        [(0, 4), (3, 0), (4, 3)],
+        [(3, 0), (7, 2), (4, 3)],
+        [(4, 3), (7, 2), (7, 5)],
+        [(0, 4), (4, 3), (3, 7)],
+        [(4, 3), (3, 7), (7, 5)]
+    ]
+
+    some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
+    polygons.slabAlgorithm(some_polygons, some_points)
 
 
 if __name__ == '__main__':

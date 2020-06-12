@@ -299,13 +299,39 @@ public:
     Vetor *vertices;
     bool isThisConvex;
 
+    Polygon() {
+    }
+
     Polygon(int n_vertices, Vetor *vertices) {
-        this->vertices = (Vetor*)malloc(sizeof(Vetor) * n_vertices);
-        for(int i = 0; i < n_vertices; i++) {
-            this->vertices[i] = vertices[i];
-        }
+        this->vertices = vertices;
         this->n_vertices = n_vertices;
         this->isThisConvex = (bool)isConvex(this->n_vertices, this->vertices);
+    }
+
+    Polygon(PyObject *thisPolygon) {
+        int num_vert = (int)PyList_Size(thisPolygon);
+        this->vertices = new Vetor [num_vert];
+
+        for(int j = 0; j < num_vert; j++) {
+            PyObject *vertex = PyList_GetItem(thisPolygon, j);
+
+            double x = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 0));
+            double y = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 1));
+            int tuple_size = (int)PyTuple_Size(vertex);
+            double z = 0;
+            if(tuple_size > 2) {
+                z = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 2));
+            }
+            this->vertices[j] = Vetor(x, y, z);
+        }
+        this->n_vertices = num_vert;
+        this->isThisConvex = (bool)isConvex(this->n_vertices, this->vertices);
+    }
+
+    void print() {
+        for(int i = 0; i < this->n_vertices; i++) {
+            printf("(%.1f, %.1f)\n", this->vertices[i].x, this->vertices[i].y);
+        }
     }
 
     ~Polygon() {
@@ -316,36 +342,73 @@ public:
 class Map {
 public:
     int n_polygons;
-    Polygon *polygons;
+    Polygon **polygons;
 
     int n_slabs;
     double *slabs;
     std::vector<std::vector<int>> slabsIndices;
 
-    Map(int n_polygons, Polygon *polygons) {
-        this->n_polygons = n_polygons;
-        this->polygons = (Polygon*)malloc(sizeof(Polygon) * this->n_polygons);
-        int n_vertices = 0;
+    Map(PyObject *p_polygons) {
+        this->n_polygons = (int)PyList_Size(p_polygons);
+        this->polygons = (Polygon**)malloc(sizeof(Polygon*) * this->n_polygons);
 
+        int n_vertices = 0;
         for(int i = 0; i < this->n_polygons; i++) {
-            this->polygons[i] = polygons[i];
-            n_vertices += this->polygons[i].n_vertices;
+            this->polygons[i] = new Polygon(PyList_GetItem(p_polygons, i));
+            n_vertices += this->polygons[i]->n_vertices;
         }
 
         std::vector<Vetor> limits;
-        this->slabs = (double*)malloc(sizeof(double) * n_vertices);
+        this->slabs = new double [n_vertices];
         this->n_slabs = 0;
         for(int i = 0; i < this->n_polygons; i++) {
-            Vetor current(0, 0);
-            for(int j = 0; j < this->polygons[i].n_vertices; j++) {
-                this->slabs[this->n_slabs] = this->polygons[i].vertices[j].y;
-                current.x = fmin(current.x, this->polygons[i].vertices[j].y);
-                current.y = fmax(current.y, this->polygons[i].vertices[j].y);
+            double lower = -1.0, upper = -1.0;
+            for(int j = 0; j < this->polygons[i]->n_vertices; j++) {
+                if(j == 0) {
+                    lower = this->polygons[i]->vertices[j].y;
+                    upper = this->polygons[i]->vertices[j].y;
+                } else {
+                    lower = fmin(lower, this->polygons[i]->vertices[j].y);
+                    upper = fmax(upper, this->polygons[i]->vertices[j].y);
+                }
+                this->slabs[this->n_slabs] = this->polygons[i]->vertices[j].y;
                 this->n_slabs += 1;
             }
-            limits.push_back(current);
+            limits.push_back(Vetor(lower, upper));
         }
         qsort(this->slabs, this->n_slabs, sizeof(double), compare_doubles);
+        // remove duplicates
+        int *counts = new int [this->n_slabs];
+        for(int i = 0; i < this->n_slabs; i++) {
+            counts[i] = 0;
+        }
+
+        for(int i = 0; i < this->n_slabs; i++) {
+            for(int j = i; j < this->n_slabs; j++) {
+                if(this->slabs[i] == this->slabs[j]) {
+                    counts[i] += 1;
+                }
+            }
+        }
+        int n_raw = 0;
+        for(int i = 0; i < this->n_slabs; i++) {
+            if(counts[i] == 1) {
+                n_raw += 1;
+            }
+        }
+
+        int raw_counter = 0;
+        double *raw_slabs = new double [n_raw];
+        for(int i = 0; i < this->n_slabs; i++) {
+            if(counts[i] == 1) {
+                raw_slabs[raw_counter] = this->slabs[i];
+                raw_counter += 1;
+            }
+        }
+        free(this->slabs);
+        this->slabs = raw_slabs;
+        this->n_slabs = raw_counter;
+
         for(int i = 0; i < this->n_slabs; i++) {
             std::vector<int> thisIndices;
             for(int j = 0; j < limits.size(); j++) {
@@ -360,10 +423,10 @@ public:
     /**
      * Checa se um ponto está dentro de um polígono desse mapa.
      * @param point Ponto a ser checado
-     * @return NULL se o ponto não está dentro de nenhum polígono; ou um ponteiro para o
-     * polígono ao qual esse ponto está inserido
+     * @return -1 se o ponto não está dentro de nenhum polígono; ou o índice do polígono ao qual esse ponto
+     * está inserido
      */
-    Polygon *checkInside(Vetor point) {
+    int checkInside(Vetor point) {
         int index = -1;
         for(int i = 0; i < this->n_slabs; i++) {
             if(point.y >= this->slabs[i]) {
@@ -371,28 +434,61 @@ public:
             }
         }
         if(index == -1) {
-            return NULL;
+            return -1;
         }
         std::vector<int> indices = this->slabsIndices[index];
         int res = 0;
         for(int j = 0; j < indices.size(); j++) {
-            if(this->polygons[indices[j]].isThisConvex) {
-                res = isInsideConvex(this->polygons[indices[j]].n_vertices, this->polygons[indices[j]].vertices, point);
+            if(this->polygons[indices[j]]->isThisConvex) {
+                res = isInsideConvex(this->polygons[indices[j]]->n_vertices, this->polygons[indices[j]]->vertices, point);
             } else {
-                res = isInsideConcave(this->polygons[indices[j]].n_vertices, this->polygons[indices[j]].vertices, point);
+                res = isInsideConcave(this->polygons[indices[j]]->n_vertices, this->polygons[indices[j]]->vertices, point);
             }
             if(res == 1) {
-                return &this->polygons[indices[j]];
+                return indices[j];
             }
         }
-        return NULL;
+        return -1;
     }
 
     ~Map() {
-        free(polygons);
+        for(int i = 0; i < this->n_polygons; i++) {
+            free(this->polygons[i]);
+        }
         free(this->slabs);
     }
 };
+
+PyObject *slabAlgorithm(PyObject *self, PyObject *args) {
+    PyObject *p_polygons;
+    PyObject *p_points;
+
+    if (!PyArg_ParseTuple(
+        args, "O!O!",
+        &PyList_Type, &p_polygons,
+        &PyList_Type, &p_points
+    )) {
+        return NULL;
+    }
+
+    Map myMap(p_polygons);
+
+    int n_points = PyList_Size(p_points);
+    for(int i = 0; i < n_points; i++) {
+        PyObject *vertex = PyList_GetItem(p_points, i);
+        double x = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 0));
+        double y = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 1));
+        int tuple_size = (int)PyTuple_Size(vertex);
+        double z = 0;
+        if(tuple_size > 2) {
+            z = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 2));
+        }
+        Vetor point = Vetor(x, y, z);
+
+        printf("point (%f, %f) is inside polygon %d\n", x, y, myMap.checkInside(point));
+    }
+    return Py_BuildValue("i", -1);
+}
 
 //------------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------//
@@ -403,7 +499,6 @@ public:
  * Começa pelo ponto mais abaixo, e procura os pontos subsequentes que possuem o menor ângulo com este vetor.
  */
 PyObject *convexHullCore(int n_points, Vetor *points) {
-
     int lowestY = 2147483647;  // max int value
     int startIndex = -1;
     for(int i = 0; i < n_points; i++) {
@@ -563,6 +658,9 @@ static PyMethodDef module_methods[] = {{
     }, {
     "convexHull", convexHull, METH_VARARGS,
     "Transforms a concave polygon into a convex polygon"
+    }, {
+    "slabAlgorithm", slabAlgorithm, METH_VARARGS,
+    "Checks in which polygon a point is inside based on the Slab Algorithm"
     },
     {NULL, NULL, 0, NULL}
 };
