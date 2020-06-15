@@ -1,4 +1,8 @@
-import polygons
+import geometries
+
+
+# class MyPolygon(geometries.Polygon):
+#     pass
 
 
 def main():
@@ -14,13 +18,13 @@ def main():
     #     for ponto, cor in zip(pontos, corretude_convexos[i]):
     #         res = polygons.isInsideConvexPolygon(convex, ponto)
     #         if res != cor:
-    #             print('point %r is wrong for polygon %r' % (ponto, convex))
+    #             print('point %r is wrong for geometries %r' % (ponto, convex))
     #
     # for i, concave in enumerate(concavos):
     #     for ponto, cor in zip(pontos, corretude_concavos[i]):
     #         res = polygons.isInsideConcavePolygon(concave, ponto)
     #         if res != cor:
-    #             print('point %r is wrong for polygon %r' % (ponto, concave))
+    #             print('point %r is wrong for geometries %r' % (ponto, concave))
 
     # testa convex hull
     # for concave in concavos:
@@ -34,10 +38,15 @@ def main():
         [(4, 3), (3, 7), (7, 5)]
     ]
 
-    some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
-    indices = polygons.slabAlgorithm(some_polygons, some_points)
-    for i in range(len(some_points)):
-        print('point %r is inside polygon %d' % (some_points[i], indices[i]))
+    # some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
+    # indices = geometries.slabAlgorithm(some_polygons, some_points)
+    # for i in range(len(some_points)):
+    #     print('point %r is inside geometries %d' % (some_points[i], indices[i]))
+
+    pol = geometries.Polygon([(0, 4), (3, 0), (4, 3)])
+    pol.increase_meter(how_much=3)
+    print(pol.n_vertices)
+    print(pol.vertices)
 
 
 if __name__ == '__main__':
