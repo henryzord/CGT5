@@ -35,7 +35,9 @@ def main():
     ]
 
     some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
-    polygons.slabAlgorithm(some_polygons, some_points)
+    indices = polygons.slabAlgorithm(some_polygons, some_points)
+    for i in range(len(some_points)):
+        print('point %r is inside polygon %d' % (some_points[i], indices[i]))
 
 
 if __name__ == '__main__':

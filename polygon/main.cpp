@@ -7,6 +7,8 @@
 //
 #define _USE_MATH_DEFINES
 
+#define N_VERTICES_SLAB 150
+
 #include <stdio.h>
 #include <math.h>
 #include <cstdlib>
@@ -352,15 +354,13 @@ public:
         this->n_polygons = (int)PyList_Size(p_polygons);
         this->polygons = (Polygon**)malloc(sizeof(Polygon*) * this->n_polygons);
 
-        int n_vertices = 0;
         for(int i = 0; i < this->n_polygons; i++) {
             this->polygons[i] = new Polygon(PyList_GetItem(p_polygons, i));
-            n_vertices += this->polygons[i]->n_vertices;
         }
 
         std::vector<Vetor> limits;
-        this->slabs = new double [n_vertices];
-        this->n_slabs = 0;
+
+        double absoluteLower = this->polygons[0]->vertices[0].y, absoluteUpper = this->polygons[0]->vertices[0].y;
         for(int i = 0; i < this->n_polygons; i++) {
             double lower = -1.0, upper = -1.0;
             for(int j = 0; j < this->polygons[i]->n_vertices; j++) {
@@ -370,44 +370,19 @@ public:
                 } else {
                     lower = fmin(lower, this->polygons[i]->vertices[j].y);
                     upper = fmax(upper, this->polygons[i]->vertices[j].y);
+                    absoluteLower = fmin(absoluteLower, lower);
+                    absoluteUpper = fmax(absoluteUpper, upper);
                 }
-                this->slabs[this->n_slabs] = this->polygons[i]->vertices[j].y;
-                this->n_slabs += 1;
             }
             limits.push_back(Vetor(lower, upper));
         }
-        qsort(this->slabs, this->n_slabs, sizeof(double), compare_doubles);
-        // remove duplicates
-        int *counts = new int [this->n_slabs];
-        for(int i = 0; i < this->n_slabs; i++) {
-            counts[i] = 0;
-        }
 
-        for(int i = 0; i < this->n_slabs; i++) {
-            for(int j = i; j < this->n_slabs; j++) {
-                if(this->slabs[i] == this->slabs[j]) {
-                    counts[i] += 1;
-                }
-            }
+        this->slabs = new double [N_VERTICES_SLAB];
+        this->n_slabs = N_VERTICES_SLAB;
+        double increment = (absoluteUpper - absoluteLower)/this->n_slabs;
+        for(int i = 0; i < N_VERTICES_SLAB; i++) {
+            this->slabs[i] = absoluteLower + i * increment;
         }
-        int n_raw = 0;
-        for(int i = 0; i < this->n_slabs; i++) {
-            if(counts[i] == 1) {
-                n_raw += 1;
-            }
-        }
-
-        int raw_counter = 0;
-        double *raw_slabs = new double [n_raw];
-        for(int i = 0; i < this->n_slabs; i++) {
-            if(counts[i] == 1) {
-                raw_slabs[raw_counter] = this->slabs[i];
-                raw_counter += 1;
-            }
-        }
-        free(this->slabs);
-        this->slabs = raw_slabs;
-        this->n_slabs = raw_counter;
 
         for(int i = 0; i < this->n_slabs; i++) {
             std::vector<int> thisIndices;
@@ -474,6 +449,9 @@ PyObject *slabAlgorithm(PyObject *self, PyObject *args) {
     Map myMap(p_polygons);
 
     int n_points = PyList_Size(p_points);
+
+    PyObject *indices = PyList_New(n_points);
+
     for(int i = 0; i < n_points; i++) {
         PyObject *vertex = PyList_GetItem(p_points, i);
         double x = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 0));
@@ -485,9 +463,9 @@ PyObject *slabAlgorithm(PyObject *self, PyObject *args) {
         }
         Vetor point = Vetor(x, y, z);
 
-        printf("point (%f, %f) is inside polygon %d\n", x, y, myMap.checkInside(point));
+        PyList_SetItem(indices, i, Py_BuildValue("i", myMap.checkInside(point)));
     }
-    return Py_BuildValue("i", -1);
+    return indices;
 }
 
 //------------------------------------------------------------------------------------------------------------------//
