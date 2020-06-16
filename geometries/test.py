@@ -1,4 +1,6 @@
 from geometries import Polygon, Map
+from matplotlib import pyplot as plt
+import numpy as np
 
 
 # class MyPolygon(geometries.Polygon):
@@ -36,6 +38,8 @@ def main():
 
     # ------------------------------------------- #
 
+    fig, ax = plt.subplots()
+
     some_polygons = [
         Polygon([(0, 4), (3, 0), (4, 3)]),
         Polygon([(3, 0), (7, 2), (4, 3)]),
@@ -44,23 +48,20 @@ def main():
         Polygon([(4, 3), (3, 7), (7, 5)])
     ]
 
-    myMap = Map(polygons=some_polygons)
-    print('n_polygons:', myMap.n_polygons)
-
-    for i, pol in enumerate(myMap.polygons):
-        print('polygon #%d: %r' % (i, pol))
-
     some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
+    # some_npy_points = np.array(some_points)
+    # ax.scatter(some_npy_points[:, 0], some_npy_points[:, 1])
+    # for pol in some_polygons:
+    #     for i in range(1, pol.n_vertices):
+    #         ax.plot([pol.vertices[i-1][0], pol.vertices[i][0]], [pol.vertices[i-1][1], pol.vertices[i][1]], c='black')
+    #     ax.plot([pol.vertices[-1][0], pol.vertices[0][0]], [pol.vertices[-1][1], pol.vertices[0][1]], c='black')
+
+    myMap = Map(polygons=some_polygons)
+
     for point in some_points:
-        print(myMap.checkInside(point))
+        print('point %r is inside polygon %d' % (point, myMap.checkInside(point)))
 
-    # for i in range(len(some_points)):
-    #     print('point %r is inside geometries %d' % (some_points[i], indices[i]))
-
-    # pol = Polygon([(0, 4), (3, 0), (4, 3)])
-    # pol.increase_meter(how_much=3)
-    # print(pol.n_vertices)
-    # print(pol.vertices)
+    # plt.show()
 
 
 if __name__ == '__main__':

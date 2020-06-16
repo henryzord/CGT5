@@ -88,7 +88,7 @@ static int PyMap_init(PyMap *self, PyObject *args, PyObject *kwargs) {
 
 static void PyMap_dealloc(PyMap * self) {
     for(int i = 0; i < self->n_polygons; i++) {
-        Py_DECREF(self->polygons[i]);
+        Py_DECREF(&self->polygons[i]);
     }
     Py_DECREF(self->py_slabs);
     Py_DECREF(self->py_polygons);
@@ -113,10 +113,13 @@ PyObject *PyMap_checkInside(PyMap *self, PyObject *args, PyObject *kwargs) {
 
     int index = -1;
     for(int i = 0; i < self->n_slabs; i++) {
-        if(point.y >= self->slabs[i]) {
+        if(point.y <= self->slabs[i]) { // TODO flipped comparison
             index = i;
+            break;
         }
     }
+    Py_INCREF(&PyMapType);
+
     if(index == -1) {
         return Py_BuildValue("i", -1);
     }
@@ -130,7 +133,7 @@ PyObject *PyMap_checkInside(PyMap *self, PyObject *args, PyObject *kwargs) {
 
     // for each polygon in that region
     for(int j = 0; j < indices.size(); j++) {
-        res = PyPolygon_isInside(self->polygons[j], other_args, other_kwargs);
+        res = PyPolygon_isInside(self->polygons[indices[j]], other_args, other_kwargs);
         if(res == Py_True) {
             return Py_BuildValue("i", indices[j]);
         }
