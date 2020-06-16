@@ -112,9 +112,11 @@ static PyTypeObject PyPolygonType = {
 };
 
 static int PyPolygon_init(PyPolygon *self, PyObject *args, PyObject *kwargs) {
-    static char *keywords[] = {"thisPolygon", NULL};
+    static char *keywords[] = {"vertices", NULL};
     PyObject *thisPolygon;
-    PyArg_ParseTupleAndKeywords(args, kwargs, "O!", keywords, &PyList_Type, &thisPolygon);
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O!", keywords, &PyList_Type, &thisPolygon)) {
+        return NULL;
+    }
 
     int num_vert = (int)PyList_Size(thisPolygon);
     self->vertices = new Vetor [num_vert];
@@ -141,6 +143,7 @@ static int PyPolygon_init(PyPolygon *self, PyObject *args, PyObject *kwargs) {
 
 static void PyPolygon_dealloc(PyPolygon * self) {
     free(self->vertices);
+    Py_DECREF(self->py_vertices);
     Py_TYPE(self)->tp_free(self);
 }
 
@@ -175,6 +178,7 @@ static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *k
     if(isInside) {
         return Py_True;
     }
+    Py_INCREF(&PyPolygonType);
     return Py_False;
 }
 
@@ -229,7 +233,6 @@ static PyPolygon *PyPolygon_toConvexHull(PyPolygon *self) {
 
     n_newPoints -= 1;  // last point will be the same as first
 
-//    PyPolygon *new_polygon = new PyPolygon;
     PyPolygon *new_polygon = PyObject_New(PyPolygon, &PyPolygonType);
     new_polygon->n_vertices = n_newPoints;
     new_polygon->vertices = new_points;
@@ -243,8 +246,8 @@ static PyPolygon *PyPolygon_toConvexHull(PyPolygon *self) {
             Py_BuildValue("(ddd)", new_points[i].x, new_points[i].y, new_points[i].z)
         );
     }
-    // TODO some seg fault problem here
-//    return self;
+    Py_INCREF(&PyPolygonType);  // TODO unsure?
+
     return new_polygon;
 }
 
@@ -263,7 +266,7 @@ PyObject *PyPolygon_str(PyPolygon *self) {
     return PyUnicode_FromFormat("%s]", res.c_str());
 }
 
-static PyMethodDef polygon_instance_methods[] = {
+static PyMethodDef PyPolygon_methods[] = {
     {
         "isInside",
         (PyCFunction)PyPolygon_isInside, METH_VARARGS | METH_KEYWORDS,

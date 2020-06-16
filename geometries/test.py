@@ -1,4 +1,4 @@
-from geometries import Polygon
+from geometries import Polygon, Map
 
 
 # class MyPolygon(geometries.Polygon):
@@ -28,20 +28,32 @@ def main():
             if answer != bool(rightfulness):
                 print('point %r is wrong for geometry with points %r' % (t_point, concav))
 
+    # ------------------------------------------- #
+
     # testa convex hull
     for concave in concavos:
         print(concave.toConvexHull())
 
-    # some_polygons = [
-    #     Polygon([(0, 4), (3, 0), (4, 3)]),
-    #     Polygon([(3, 0), (7, 2), (4, 3)]),
-    #     Polygon([(4, 3), (7, 2), (7, 5)]),
-    #     Polygon([(0, 4), (4, 3), (3, 7)]),
-    #     Polygon([(4, 3), (3, 7), (7, 5)])
-    # ]
+    # ------------------------------------------- #
 
-    # some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
-    # indices = geometries.slabAlgorithm(some_polygons, some_points)
+    some_polygons = [
+        Polygon([(0, 4), (3, 0), (4, 3)]),
+        Polygon([(3, 0), (7, 2), (4, 3)]),
+        Polygon([(4, 3), (7, 2), (7, 5)]),
+        Polygon([(0, 4), (4, 3), (3, 7)]),
+        Polygon([(4, 3), (3, 7), (7, 5)])
+    ]
+
+    myMap = Map(polygons=some_polygons)
+    print('n_polygons:', myMap.n_polygons)
+
+    for i, pol in enumerate(myMap.polygons):
+        print('polygon #%d: %r' % (i, pol))
+
+    some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
+    for point in some_points:
+        print(myMap.checkInside(point))
+
     # for i in range(len(some_points)):
     #     print('point %r is inside geometries %d' % (some_points[i], indices[i]))
 

@@ -15,41 +15,6 @@
 #include "structmember.h"  // for PyMemberDef
 
 
-PyObject *slabAlgorithm(PyObject *self, PyObject *args) {
-//    PyObject *p_polygons;
-//    PyObject *p_points;
-//
-//    if (!PyArg_ParseTuple(
-//        args, "O!O!",
-//        &PyList_Type, &p_polygons,
-//        &PyList_Type, &p_points
-//    )) {
-//        return NULL;
-//    }
-//
-//    Map myMap(p_polygons);
-//
-//    int n_points = (int)PyList_Size(p_points);
-//
-//    PyObject *indices = PyList_New(n_points);
-//
-//    for(int i = 0; i < n_points; i++) {
-//        PyObject *vertex = PyList_GetItem(p_points, i);
-//        double x = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 0));
-//        double y = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 1));
-//        int tuple_size = (int)PyTuple_Size(vertex);
-//        double z = 0;
-//        if(tuple_size > 2) {
-//            z = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 2));
-//        }
-//        Vetor point = Vetor(x, y, z);
-//
-//        PyList_SetItem(indices, i, Py_BuildValue("i", myMap.checkInside(point)));
-//    }
-//    return indices;
-    return Py_BuildValue("s", "not implemented yet");
-}
-
 //------------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------//
@@ -69,10 +34,10 @@ static PyMethodDef module_methods[] = {//{
 //    "isInsideConvexPolygon", isInsideConvexPolygon, METH_VARARGS,
 //    "Checks whether a point is inside a convex polygon"
 //    }, {
-    {
-        "slabAlgorithm", slabAlgorithm, METH_VARARGS,
-        "Checks in which polygon a point is inside based on the Slab Algorithm"
-    },
+//    {
+//        "slabAlgorithm", slabAlgorithm, METH_VARARGS,
+//        "Checks in which polygon a point is inside based on the Slab Algorithm"
+//    },
     {NULL, NULL, 0, NULL}
 };
 
@@ -98,8 +63,8 @@ PyMODINIT_FUNC PyInit_geometries(void) {
     PyPolygonType.tp_basicsize = sizeof(PyPolygon);
     PyPolygonType.tp_dealloc=(destructor) PyPolygon_dealloc;
     PyPolygonType.tp_flags=Py_TPFLAGS_DEFAULT;
-    PyPolygonType.tp_doc="Polygon object";
-    PyPolygonType.tp_methods=polygon_instance_methods;
+    PyPolygonType.tp_doc="Describes a Polygon. A polygon is composed by a given number of vertices, where each vertex is a tuple with three values.";
+    PyPolygonType.tp_methods=PyPolygon_methods;
     PyPolygonType.tp_members=PyPolygon_members;
     PyPolygonType.tp_str=(reprfunc)PyPolygon_str;
     PyPolygonType.tp_repr=(reprfunc)PyPolygon_str;
@@ -109,12 +74,29 @@ PyMODINIT_FUNC PyInit_geometries(void) {
         return NULL;
     }
 
+    PyMapType.tp_new = PyType_GenericNew;
+    PyMapType.tp_basicsize = sizeof(PyMap);
+    PyMapType.tp_dealloc=(destructor)PyMap_dealloc;
+    PyMapType.tp_flags=Py_TPFLAGS_DEFAULT;
+    PyMapType.tp_doc="Describes a Map. A map is composed by a set of polygons.";
+    PyMapType.tp_methods=PyMap_methods;
+    PyMapType.tp_members=PyMap_members;
+//    PyMapType.tp_str=(reprfunc)PyMap_str;
+//    PyMapType.tp_repr=(reprfunc)PyMap_str;
+    PyMapType.tp_init=(initproc)PyMap_init;
+
+    if (PyType_Ready(&PyMapType) < 0) {
+        return NULL;
+    }
+
     module_py = PyModule_Create(&module_definition);
     if (!module_py) {
         return NULL;
     }
 
     Py_INCREF(&PyPolygonType);
-    PyModule_AddObject(module_py, "Polygon", (PyObject *)&PyPolygonType);
+    Py_INCREF(&PyMapType);
+    PyModule_AddObject(module_py, "Polygon", (PyObject*)&PyPolygonType);
+    PyModule_AddObject(module_py, "Map", (PyObject*)&PyMapType);
     return module_py;
 }
