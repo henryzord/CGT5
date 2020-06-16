@@ -1,5 +1,5 @@
-#ifndef MATH_PRIMITIVES_H
-#define MATH_PRIMITIVES_H
+#ifndef POLYGON_H
+#define POLYGON_H
 
 #include <math.h>
 #include <stdio.h>
@@ -100,9 +100,9 @@ typedef struct {
     PyObject *py_vertices;
     bool isThisConvex;
 
-    Vetor bbCenter;
-    double bbHeight;
-    double bbWidth;
+//    Vetor bbCenter;
+//    double bbHeight;
+//    double bbWidth;
 
 } PyPolygon;
 
@@ -144,14 +144,7 @@ static void PyPolygon_dealloc(PyPolygon * self) {
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *kwargs) {
-    PyObject *py_point;
-
-    static char *keywords[] = {"point", NULL};
-    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O!", keywords, &PyTuple_Type, &py_point)) {
-        return NULL;
-    }
-
+static Vetor readPoint(PyObject *py_point) {
     double xp = (double)PyFloat_AsDouble(PyTuple_GetItem(py_point, 0));
     double yp = (double)PyFloat_AsDouble(PyTuple_GetItem(py_point, 1));
     double zp = 0;
@@ -160,22 +153,100 @@ static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *k
         zp = (double)PyFloat_AsDouble(PyTuple_GetItem(py_point, 2));
     }
     Vetor point(xp, yp, zp);
+    return point;
+}
+
+static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *kwargs) {
+    PyObject *py_point;
+
+    static char *keywords[] = {"point", NULL};
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O!", keywords, &PyTuple_Type, &py_point)) {
+        return NULL;
+    }
+
+    Vetor point = readPoint(py_point);
 
     int isInside;
     if(self->isThisConvex) {
-        isInside = isInsideConcave(self->n_vertices, self->vertices, point);
-    } else {
         isInside = isInsideConvex(self->n_vertices, self->vertices, point);
+    } else {
+        isInside = isInsideConcave(self->n_vertices, self->vertices, point);
     }
     if(isInside) {
         return Py_True;
     }
     return Py_False;
-
-//    return Py_BuildValue("i", isInside);
 }
 
-// TODO
+/**
+ * Implementa o algoritmo gift wrapping para calcular o convex hull.
+ * Começa pelo ponto mais abaixo, e procura os pontos subsequentes que possuem o menor ângulo com este vetor.
+ */
+static PyPolygon *PyPolygon_toConvexHull(PyPolygon *self) {
+    int lowestY = 2147483647;  // max int value
+    int startIndex = -1;
+    for(int i = 0; i < self->n_vertices; i++) {
+        if(self->vertices[i].y < lowestY) {
+            lowestY = i;
+            startIndex = i;
+        }
+    }
+    int n_newPoints = 1;
+    Vetor *new_points = (Vetor*)malloc(sizeof(Vetor) * self->n_vertices);
+    new_points[0] = self->vertices[startIndex];
+
+    int curIndex = startIndex;
+    int lastIndex = curIndex;
+
+    do {
+        int minAngle = 359;
+        int maxIndex = -1;
+        Vetor thisPoint = self->vertices[curIndex];
+        Vetor thisFarRight(100, 0);
+
+        for(int j = 0; j < self->n_vertices; j++) {
+            if(j == curIndex) {
+                continue;
+            }
+            Vetor thatPoint = self->vertices[j];
+            Vetor thatTransPoint(thatPoint.x - thisPoint.x, thatPoint.y - thisPoint.y);
+
+            int angle = thisFarRight.angle(thatTransPoint);
+            if(thatTransPoint.y < 0) {
+                angle += 180;
+            }
+
+            if(angle < minAngle) {
+                minAngle = angle;
+                maxIndex = j;
+            }
+        }
+        lastIndex = curIndex;
+        curIndex = maxIndex;
+        new_points[n_newPoints] = self->vertices[curIndex];
+        n_newPoints += 1;
+    } while((curIndex != startIndex) && (n_newPoints < self->n_vertices));
+
+    n_newPoints -= 1;  // last point will be the same as first
+
+//    PyPolygon *new_polygon = new PyPolygon;
+    PyPolygon *new_polygon = PyObject_New(PyPolygon, &PyPolygonType);
+    new_polygon->n_vertices = n_newPoints;
+    new_polygon->vertices = new_points;
+    new_polygon->isThisConvex = true;  // it has to be
+
+    new_polygon->py_vertices = PyList_New(n_newPoints);
+
+    for(int i = 0; i < n_newPoints; i++) {
+        PyList_SetItem(
+            new_polygon->py_vertices, i,
+            Py_BuildValue("(ddd)", new_points[i].x, new_points[i].y, new_points[i].z)
+        );
+    }
+    // TODO some seg fault problem here
+//    return self;
+    return new_polygon;
+}
 
 
 PyObject *PyPolygon_str(PyPolygon *self) {
@@ -198,6 +269,11 @@ static PyMethodDef polygon_instance_methods[] = {
         (PyCFunction)PyPolygon_isInside, METH_VARARGS | METH_KEYWORDS,
         "Checks whether a point is inside this polygon"
     },
+    {
+        "toConvexHull",
+        (PyCFunction)PyPolygon_toConvexHull, METH_NOARGS,
+        "Converts a concave polygon to a convex one. Idempotent on convex polygons"
+    },
     {NULL, NULL, 0, NULL}
 };
 
@@ -209,8 +285,4 @@ static PyMemberDef PyPolygon_members[] = {
 };
 
 
-//int compare_doubles(const void * a, const void * b) {
-//  return (int)( *(double*)a - *(double*)b );
-//}
-
-#endif // MATH_PRIMITIVES_H
+#endif // POLYGON

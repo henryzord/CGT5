@@ -29,8 +29,8 @@ def main():
                 print('point %r is wrong for geometry with points %r' % (t_point, concav))
 
     # testa convex hull
-    # for concave in concavos:
-    #     print(polygons.convexHull(concave))
+    for concave in concavos:
+        print(concave.toConvexHull())
 
     # some_polygons = [
     #     Polygon([(0, 4), (3, 0), (4, 3)]),
