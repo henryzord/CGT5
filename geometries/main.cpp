@@ -147,66 +147,6 @@ static PyObject *convexHull(PyObject *self, PyObject *args) {
     return novosPontos;
 }
 
-//PyObject* PyPolygon_getter(PyPolygon *self, PyObject *attr) {
-////    Py_XINCREF(self->pyobj);
-////    return self->pyobj;
-//    return Py_None;
-//}
-
-static PyObject *commonCheckCode(PyObject *self, PyObject *args, bool concave) {
-    PyObject *p_pontos, *p_ponto;
-
-    if (!PyArg_ParseTuple(
-        args, "O!O!",
-        &PyList_Type, &p_pontos,
-        &PyTuple_Type, &p_ponto
-    )) {
-        return NULL;
-    }
-
-    int num_vert = (int)PyList_Size(p_pontos);
-
-    Vetor *pontos = (Vetor*)malloc(sizeof(Vetor) * num_vert);
-    for(int i = 0; i < num_vert; i++) {
-        PyObject *item = PyList_GetItem(p_pontos, i);
-
-        double x = (double)PyFloat_AsDouble(PyTuple_GetItem(item, 0));
-        double y = (double)PyFloat_AsDouble(PyTuple_GetItem(item, 1));
-        int tuple_size = (int)PyTuple_Size(item);
-        double z = 0;
-        if(tuple_size > 2) {
-            z = (double)PyFloat_AsDouble(PyTuple_GetItem(item, 2));
-        }
-        pontos[i] = Vetor(x, y, z);
-    }
-
-    double xp = (double)PyFloat_AsDouble(PyTuple_GetItem(p_ponto, 0));
-    double yp = (double)PyFloat_AsDouble(PyTuple_GetItem(p_ponto, 1));
-    double zp = 0;
-    int tuple_size = (int)PyTuple_Size(p_ponto);
-    if(tuple_size > 2) {
-        zp = (double)PyFloat_AsDouble(PyTuple_GetItem(p_ponto, 2));
-    }
-    Vetor ponto(xp, yp, zp);
-
-    int isInside;
-    if(concave) {
-        isInside = isInsideConcave(num_vert, &pontos[0], ponto);
-    } else {
-        isInside = isInsideConvex(num_vert, &pontos[0], ponto);
-    }
-    free(pontos);
-    return Py_BuildValue("i", isInside);
-}
-
-static PyObject* isInsideConcavePolygon(PyObject *self, PyObject *args) {
-    return commonCheckCode(self, args, true);
-}
-
-static PyObject* isInsideConvexPolygon(PyObject *self, PyObject *args) {
-    return commonCheckCode(self, args, false);
-}
-
 
 // Method definition object for this extension, these argumens mean:
 // ml_name: The name of the method
@@ -215,18 +155,19 @@ static PyObject* isInsideConvexPolygon(PyObject *self, PyObject *args) {
 //          accepting arguments, accepting keyword arguments, being a
 //          class method, or being a static method of a class.
 // ml_doc:  Contents of this method's docstring
-static PyMethodDef module_methods[] = {{
-    "isInsideConcavePolygon", isInsideConcavePolygon, METH_VARARGS,
-    "Checks whether a point is inside a concave polygon"
+static PyMethodDef module_methods[] = {//{
+//    "isInsideConcavePolygon", isInsideConcavePolygon, METH_VARARGS,
+//    "Checks whether a point is inside a concave polygon"
+//    }, {
+//    "isInsideConvexPolygon", isInsideConvexPolygon, METH_VARARGS,
+//    "Checks whether a point is inside a convex polygon"
+//    }, {
+    {
+        "convexHull", convexHull, METH_VARARGS,
+        "Transforms a concave polygon into a convex polygon"
     }, {
-    "isInsideConvexPolygon", isInsideConvexPolygon, METH_VARARGS,
-    "Checks whether a point is inside a convex polygon"
-    }, {
-    "convexHull", convexHull, METH_VARARGS,
-    "Transforms a concave polygon into a convex polygon"
-    }, {
-    "slabAlgorithm", slabAlgorithm, METH_VARARGS,
-    "Checks in which polygon a point is inside based on the Slab Algorithm"
+        "slabAlgorithm", slabAlgorithm, METH_VARARGS,
+        "Checks in which polygon a point is inside based on the Slab Algorithm"
     },
     {NULL, NULL, 0, NULL}
 };
@@ -256,7 +197,8 @@ PyMODINIT_FUNC PyInit_geometries(void) {
     PyPolygonType.tp_doc="Polygon object";
     PyPolygonType.tp_methods = polygon_instance_methods;
     PyPolygonType.tp_members=PyPolygon_members;
-//    PyPolygonType.tp_str=PyPolygon_str;
+    PyPolygonType.tp_str=(reprfunc)PyPolygon_str;
+    PyPolygonType.tp_repr=(reprfunc)PyPolygon_str;
     PyPolygonType.tp_init=(initproc)PyPolygon_init;
 
     if (PyType_Ready(&PyPolygonType) < 0) {

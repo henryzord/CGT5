@@ -4,6 +4,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <cstdlib>
+#include <cstring>
+#include <string>
 #include "twod_vectors.h"
 #include <Python.h>
 #include "structmember.h"  // for PyMemberDef
@@ -14,7 +16,7 @@
  * @param points Pontos do polígono
  * @return 1 se o polígono for convexo, 0 se for côncavo
  */
-int isConvex(int n_points, Vetor *points) {
+bool isConvex(int n_points, Vetor *points) {
     int signal = 1;
 
     for(int i = 0; i < n_points; i++) {
@@ -32,10 +34,10 @@ int isConvex(int n_points, Vetor *points) {
         if(i == 0) {
             signal = new_signal;
         } else if(new_signal != signal) {
-            return 0;
+            return false;
         }
     }
-    return 1;
+    return true;
 }
 
 
@@ -109,15 +111,6 @@ static PyTypeObject PyPolygonType = {
     "Polygon"   /* tp_name */
 };
 
-//    PolygonClass() {
-//    }
-//
-//    PolygonClass(int n_vertices, Vetor *vertices) {
-//        this->vertices = vertices;
-//        this->n_vertices = n_vertices;
-//        this->isThisConvex = (bool)isConvex(this->n_vertices, this->vertices);
-//    }
-
 static int PyPolygon_init(PyPolygon *self, PyObject *args, PyObject *kwargs) {
     static char *keywords[] = {"thisPolygon", NULL};
     PyObject *thisPolygon;
@@ -138,10 +131,10 @@ static int PyPolygon_init(PyPolygon *self, PyObject *args, PyObject *kwargs) {
             z = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 2));
         }
         self->vertices[j] = Vetor(x, y, z);
-        PyList_SetItem(self->py_vertices, j, Py_BuildValue("(ddd)", x, y, z)); // TODO wrong, fix later
+        PyList_SetItem(self->py_vertices, j, Py_BuildValue("(ddd)", x, y, z));
     }
     self->n_vertices = num_vert;
-    self->isThisConvex = (bool)isConvex(self->n_vertices, self->vertices);
+    self->isThisConvex = isConvex(self->n_vertices, self->vertices);
 
     return 1;
 }
@@ -151,47 +144,67 @@ static void PyPolygon_dealloc(PyPolygon * self) {
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyObject* Polygon__increase_meter(PyObject *self, PyObject *args, PyObject *kwargs) {
-    static char *keywords[] = {"how_much", NULL};
-    int how_much;
-    PyArg_ParseTupleAndKeywords(args, kwargs, "i", keywords, &how_much);
+static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *kwargs) {
+    PyObject *py_point;
 
-    printf("increasing happy meter by %d\n", how_much);
+    static char *keywords[] = {"point", NULL};
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O!", keywords, &PyTuple_Type, &py_point)) {
+        return NULL;
+    }
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    double xp = (double)PyFloat_AsDouble(PyTuple_GetItem(py_point, 0));
+    double yp = (double)PyFloat_AsDouble(PyTuple_GetItem(py_point, 1));
+    double zp = 0;
+    int tuple_size = (int)PyTuple_Size(py_point);
+    if(tuple_size > 2) {
+        zp = (double)PyFloat_AsDouble(PyTuple_GetItem(py_point, 2));
+    }
+    Vetor point(xp, yp, zp);
+
+    int isInside;
+    if(self->isThisConvex) {
+        isInside = isInsideConcave(self->n_vertices, self->vertices, point);
+    } else {
+        isInside = isInsideConvex(self->n_vertices, self->vertices, point);
+    }
+    if(isInside) {
+        return Py_True;
+    }
+    return Py_False;
+
+//    return Py_BuildValue("i", isInside);
 }
+
+// TODO
 
 
 PyObject *PyPolygon_str(PyPolygon *self) {
-    // TODO implement later
-//    for(int i = 0; i < self->n_vertices; i++) {
-//        printf("(%.1f, %.1f)\n", self->vertices[i].x, self->vertices[i].y);
-//    }
-    return Py_BuildValue("s", "not implemented yet");
+    std::string res("[");
+
+    for(int i = 0; i < self->n_vertices; i++) {
+        char buffer[50];
+        sprintf_s(buffer, "(%.1f, %.1f)", self->vertices[i].x, self->vertices[i].y);
+        res += std::string(buffer);
+        if(i < (self->n_vertices - 1)) {
+            res += std::string(" ");
+        }
+    }
+    return PyUnicode_FromFormat("%s]", res.c_str());
 }
 
-static PyMethodDef polygon_instance_methods[] = {{
-    "increase_meter",
-    (PyCFunction)Polygon__increase_meter, METH_VARARGS | METH_KEYWORDS,
-    "Increases the happy meter by a given value"
+static PyMethodDef polygon_instance_methods[] = {
+    {
+        "isInside",
+        (PyCFunction)PyPolygon_isInside, METH_VARARGS | METH_KEYWORDS,
+        "Checks whether a point is inside this polygon"
     },
     {NULL, NULL, 0, NULL}
 };
 
 static PyMemberDef PyPolygon_members[] = {
-    // int n_vertices;
-//    Vetor *vertices;
-//    bool isThisConvex;
-//
-//    Vetor bbCenter;
-//    double bbHeight;
-//    double bbWidth;
     {"n_vertices", T_INT, offsetof(PyPolygon, n_vertices), 0, "number of vertices of this polygon"},
     {"vertices", T_OBJECT, offsetof(PyPolygon, py_vertices), 0, "vertices of this polygon"},
-//    {"first", T_OBJECT_EX, offsetof(Noddy, first), 0, "first name"},
-//    {"last", T_OBJECT_EX, offsetof(Noddy, last), 0, "last name"},
-//    {"number", T_INT, offsetof(Noddy, number), 0, "noddy number"},
+    {"isThisConvex", T_BOOL, offsetof(PyPolygon, isThisConvex), 0, "whether this polygon is convex or not"},
     {NULL}  /* Sentinel */
 };
 

@@ -1,4 +1,4 @@
-import geometries
+from geometries import Polygon
 
 
 # class MyPolygon(geometries.Polygon):
@@ -6,47 +6,49 @@ import geometries
 
 
 def main():
-    pontos = [(1, 5), (5, 1), (8, 5), (6, 4), (4, 3)]
+    testing_points = [(1, 5), (5, 1), (8, 5), (6, 4), (4, 3)]
 
-    convexos = [[(5, 0), (3, 2), (5, 6), (7, 3)], [(2, 0), (2, 6), (7, 6), (7, 0)]]
+    convexos = [Polygon([(5, 0), (3, 2), (5, 6), (7, 3)]), Polygon([(2, 0), (2, 6), (7, 6), (7, 0)])]
     corretude_convexos = [[0, 1, 0, 1, 1], [0, 1, 0, 1, 1]]
-    concavos = [[(2, 0), (2, 6), (7, 6), (7, 0), (5, 2)], [(2, 0), (4, 6), (9, 4), (6, 0), (5, 2)]]
+    concavos = [Polygon([(2, 0), (2, 6), (7, 6), (7, 0), (5, 2)]), Polygon([(2, 0), (4, 6), (9, 4), (6, 0), (5, 2)])]
     corretude_concavos = [[0, 0, 0, 1, 1], [0, 0, 0, 1, 1]]
 
     # testa se um ponto está dentro de polígono côncavo/convexo
-    # for i, convex in enumerate(convexos):
-    #     for ponto, cor in zip(pontos, corretude_convexos[i]):
-    #         res = polygons.isInsideConvexPolygon(convex, ponto)
-    #         if res != cor:
-    #             print('point %r is wrong for geometries %r' % (ponto, convex))
-    #
-    # for i, concave in enumerate(concavos):
-    #     for ponto, cor in zip(pontos, corretude_concavos[i]):
-    #         res = polygons.isInsideConcavePolygon(concave, ponto)
-    #         if res != cor:
-    #             print('point %r is wrong for geometries %r' % (ponto, concave))
+    for i, convex in enumerate(convexos):
+        for t_point, rightfulness in zip(testing_points, corretude_convexos[i]):
+            answer = convex.isInside(t_point)
+            if answer != bool(rightfulness):
+                print('point %r is wrong for geometry with points %r' % (t_point, convex))
+            # else:
+            #     print('point (%.1f, %.1f) is correct' % (t_point[0], t_point[1]))
+
+    for i, concav in enumerate(concavos):
+        for t_point, rightfulness in zip(testing_points, corretude_concavos[i]):
+            answer = concav.isInside(t_point)
+            if answer != bool(rightfulness):
+                print('point %r is wrong for geometry with points %r' % (t_point, concav))
 
     # testa convex hull
     # for concave in concavos:
     #     print(polygons.convexHull(concave))
 
-    some_polygons = [
-        [(0, 4), (3, 0), (4, 3)],
-        [(3, 0), (7, 2), (4, 3)],
-        [(4, 3), (7, 2), (7, 5)],
-        [(0, 4), (4, 3), (3, 7)],
-        [(4, 3), (3, 7), (7, 5)]
-    ]
+    # some_polygons = [
+    #     Polygon([(0, 4), (3, 0), (4, 3)]),
+    #     Polygon([(3, 0), (7, 2), (4, 3)]),
+    #     Polygon([(4, 3), (7, 2), (7, 5)]),
+    #     Polygon([(0, 4), (4, 3), (3, 7)]),
+    #     Polygon([(4, 3), (3, 7), (7, 5)])
+    # ]
 
     # some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
     # indices = geometries.slabAlgorithm(some_polygons, some_points)
     # for i in range(len(some_points)):
     #     print('point %r is inside geometries %d' % (some_points[i], indices[i]))
 
-    pol = geometries.Polygon([(0, 4), (3, 0), (4, 3)])
-    pol.increase_meter(how_much=3)
-    print(pol.n_vertices)
-    print(pol.vertices)
+    # pol = Polygon([(0, 4), (3, 0), (4, 3)])
+    # pol.increase_meter(how_much=3)
+    # print(pol.n_vertices)
+    # print(pol.vertices)
 
 
 if __name__ == '__main__':
