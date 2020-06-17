@@ -100,9 +100,11 @@ typedef struct {
     PyObject *py_vertices;
     bool isThisConvex;
 
-//    Vetor bbCenter;
-//    double bbHeight;
-//    double bbWidth;
+    // in radians
+    Vetor bbCenter;
+    double bbHalfHeight;
+    double bbHalfWidth;
+    double allignAngle;
 
 } PyPolygon;
 
@@ -251,6 +253,102 @@ static PyPolygon *PyPolygon_toConvexHull(PyPolygon *self) {
     return new_polygon;
 }
 
+Vetor rotatePointArbitrary(Vetor vec, Vetor origin, double radiansAngle) {
+    return Vetor(
+        (vec.x - origin.x) * cos(radiansAngle) - (vec.y - origin.y) * sin(radiansAngle) + origin.x,
+        (vec.x - origin.x) * sin(radiansAngle) + (vec.y - origin.y) * cos(radiansAngle) + origin.y
+    );
+}
+
+Vetor rotatePointOrigin(Vetor vec, double radiansAngle) {
+    return rotatePointArbitrary(vec, Vetor(0, 0), radiansAngle);
+}
+
+static PyObject *PyPolygon_addEnvelope(PyPolygon *self) {
+    // finds two farthest points
+    int aIndex = 0, bIndex = 1;
+    double maxDist = -1;
+    for(int i = 0; i < self->n_vertices; i++) {
+        for(int j = i + 1; j < self->n_vertices; j++) {
+            double dist = Vetor::point_distance(self->vertices[i], self->vertices[j]);
+            if(dist > maxDist) {
+                aIndex = i;
+                bIndex = j;
+                maxDist = dist;
+            }
+        }
+    }
+
+    Vetor closest, farthest;
+    if(Vetor::point_distance(self->vertices[aIndex], Vetor(0, 0)) < Vetor::point_distance(self->vertices[bIndex], Vetor(0, 0))) {
+        closest = self->vertices[aIndex];
+        farthest = self->vertices[bIndex];
+    } else {
+        closest = self->vertices[bIndex];
+        farthest = self->vertices[aIndex];
+    }
+
+    double adjacent = abs(farthest.x - closest.x);
+    double opposite = abs(farthest.y - closest.y);
+    double hypotenuse = Vetor::point_distance(closest, farthest);
+
+    double signal;
+    if(farthest.x - closest.x > 0) {  // either on first or fourth quadrant
+        if(farthest.y - closest.y > 0) {  // first quadrant
+            signal = -1;  // should rotate clockwise to put farthest point on x axis
+        } else {  // fourth quadrant
+            signal = 1;  // should rotate counter-clockwise to put farthest point on x axis
+        }
+    } else {  // either on second or third quadrant
+        if(farthest.y - closest.y > 0) {  // first quadrant
+            signal = 1;  // should rotate counter-clockwise to put farthest point on x axis
+        } else {  // third quadrant
+            signal = -1;  // should rotate clockwise to put farthest point on x axis
+        }
+    }
+
+    // angle between closest and farthest points
+    double rotAngle = acos(adjacent / hypotenuse);  // in radians
+
+    double upperY = 0, lowerY = 0, upperX = 0, lowerX = 0;
+    double meanX = 0, meanY = 0;
+    for(int i = 0; i < self->n_vertices; i++) {
+        Vetor rotated = rotatePointArbitrary(self->vertices[i], closest, signal * rotAngle);
+        meanX += rotated.x;
+        meanY += rotated.y;
+        if(rotated.x > upperX) {
+            upperX = rotated.x;
+        } else if(rotated.x < lowerX) {
+            lowerX = rotated.x;
+        }
+        if(rotated.y > upperY) {
+            upperY = rotated.y;
+        } else if(rotated.y < lowerY) {
+            lowerY = rotated.y;
+        }
+    }
+    self->bbCenter = Vetor(meanX / (double)self->n_vertices, meanY / (double)self->n_vertices);
+    self->bbHalfHeight = (upperY - lowerY)/2.0;
+    self->bbHalfWidth = hypotenuse / 2.0;
+    self->allignAngle = signal * rotAngle;
+
+    PyObject *corners = PyList_New(4);  // TODO remove!
+
+    Vetor lowerLeft = rotatePointArbitrary(self->bbCenter + Vetor(-self->bbHalfWidth, -self->bbHalfHeight), closest, signal * self->allignAngle);
+    Vetor upperLeft = rotatePointArbitrary(self->bbCenter + Vetor(-self->bbHalfWidth, self->bbHalfHeight), closest, signal * self->allignAngle);
+    Vetor lowerRight = rotatePointArbitrary(self->bbCenter + Vetor(self->bbHalfWidth, -self->bbHalfHeight), closest, signal * self->allignAngle);
+    Vetor upperRight = rotatePointArbitrary(self->bbCenter + Vetor(self->bbHalfWidth, self->bbHalfHeight), closest, signal * self->allignAngle);
+
+    PyList_SetItem(corners, 0, Py_BuildValue("(dd)", lowerLeft.x, lowerLeft.y));
+    PyList_SetItem(corners, 1, Py_BuildValue("(dd)", upperLeft.x, upperLeft.y));
+    PyList_SetItem(corners, 2, Py_BuildValue("(dd)", upperRight.x, upperRight.y));
+    PyList_SetItem(corners, 3, Py_BuildValue("(dd)", lowerRight.x, lowerRight.y));
+
+//    Py_INCREF(&PyPolygonType);
+    return corners;
+//    return Py_None;
+}
+
 
 PyObject *PyPolygon_str(PyPolygon *self) {
     std::string res("[");
@@ -267,6 +365,11 @@ PyObject *PyPolygon_str(PyPolygon *self) {
 }
 
 static PyMethodDef PyPolygon_methods[] = {
+    {
+        "addEnvelope",
+        (PyCFunction)PyPolygon_addEnvelope, METH_NOARGS,
+        "Adds an envelope to this polygon"
+    },
     {
         "isInside",
         (PyCFunction)PyPolygon_isInside, METH_VARARGS | METH_KEYWORDS,

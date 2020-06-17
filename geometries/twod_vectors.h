@@ -4,6 +4,14 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
+int toDegrees(double radians) {
+    return (int)((radians * 180.0) / M_PI);
+}
+
+double toRadians(int degrees) {
+    return (M_PI * (double)degrees)/180.0;
+}
+
 class Vetor {
 public:
     double x, y, z;
@@ -24,6 +32,14 @@ public:
         this->x = x;
         this->y = y;
         this->z = z;
+    }
+
+    static double point_distance(Vetor a, Vetor b) {
+        return sqrt(
+            pow(a.x - b.x, 2) +
+            pow(a.y - b.y, 2) +
+            pow(a.z - b.z, 2)
+        );
     }
 
     /**
@@ -115,7 +131,7 @@ public:
         double thisModule = this->module();
         double otherModule = other.module();
         double thisAngle = acos(dotProduct/(thisModule * otherModule));
-        int thisDegreeAngle = (int)((thisAngle * 180.0) / M_PI);
+        int thisDegreeAngle = toDegrees(thisAngle);
         return thisDegreeAngle;
     }
 

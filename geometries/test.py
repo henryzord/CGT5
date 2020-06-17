@@ -33,8 +33,29 @@ def main():
     # ------------------------------------------- #
 
     # testa convex hull
-    for concave in concavos:
-        print(concave.toConvexHull())
+    for pol in concavos:
+        # print(concave)
+        # print(concave.toConvexHull())
+        for i in range(1, pol.n_vertices):
+            plt.plot([pol.vertices[i-1][0], pol.vertices[i][0]], [pol.vertices[i-1][1], pol.vertices[i][1]], c='black')
+        plt.plot([pol.vertices[-1][0], pol.vertices[0][0]], [pol.vertices[-1][1], pol.vertices[0][1]], c='black')
+
+        corners = np.array(pol.addEnvelope())
+        # for i in range(1, pol.n_vertices):
+        #     plt.plot([corners[i-1][0], corners[i][0]], [corners[i-1][1], corners[i][1]], c='pink')
+        # plt.plot([corners[pol.n_vertices - 1][0], corners[0][0]], [corners[pol.n_vertices - 1][1], corners[0][1]], c='pink')
+        #
+        # plt.scatter(np.mean(corners[0:pol.n_vertices, 0]), np.mean(corners[0:pol.n_vertices, 1]), c='pink')
+
+        for i in range(1, 4):
+            plt.plot([corners[i-1][0], corners[i][0]], [corners[i-1][1], corners[i][1]], c='blue')
+        plt.plot([corners[-1][0], corners[0][0]], [corners[-1][1], corners[0][1]], c='blue')
+
+        break
+
+    plt.show()
+    # TODO remove!
+    exit(0)
 
     # ------------------------------------------- #
 

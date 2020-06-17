@@ -27,7 +27,8 @@
 //          accepting arguments, accepting keyword arguments, being a
 //          class method, or being a static method of a class.
 // ml_doc:  Contents of this method's docstring
-static PyMethodDef module_methods[] = {//{
+static PyMethodDef module_methods[] = {
+//{
 //    "isInsideConcavePolygon", isInsideConcavePolygon, METH_VARARGS,
 //    "Checks whether a point is inside a concave polygon"
 //    }, {
