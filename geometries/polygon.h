@@ -385,6 +385,11 @@ static PyPolygon *PyPolygon_toConvexHull(PyPolygon *self) {
     new_polygon->n_vertices = n_newPoints;
     new_polygon->vertices = new_points;
     new_polygon->isThisConvex = true;  // it has to be
+    new_polygon->pivotPoint = self->pivotPoint;
+    new_polygon->bbCenter = self->bbCenter;
+    new_polygon->bbHalfHeight = self->bbHalfHeight;
+    new_polygon->bbHalfWidth = self->bbHalfWidth;
+    new_polygon->allignAngle = self->allignAngle;
 
     new_polygon->py_vertices = PyList_New(n_newPoints);
 
@@ -430,7 +435,37 @@ static PyObject *PyPolygon_getOriginalEnvelope(PyPolygon *self) {
     return corners;
 }
 
+static PyPolygon *PyPolygon_copy(PyPolygon *self) {
 
+//    Vetor *vertices;
+//    PyObject *py_vertices;
+
+    PyPolygon *new_polygon = PyObject_New(PyPolygon, &PyPolygonType);
+    new_polygon->n_vertices = self->n_vertices;
+
+    new_polygon->vertices = (Vetor*)malloc(sizeof(Vetor) * new_polygon->n_vertices);
+    for(int i = 0; i < new_polygon->n_vertices; i++) {
+        new_polygon->vertices[i] = self->vertices[i];
+    }
+
+    new_polygon->isThisConvex = true;  // it has to be
+    new_polygon->pivotPoint = self->pivotPoint;
+    new_polygon->bbCenter = self->bbCenter;
+    new_polygon->bbHalfHeight = self->bbHalfHeight;
+    new_polygon->bbHalfWidth = self->bbHalfWidth;
+    new_polygon->allignAngle = self->allignAngle;
+
+    new_polygon->py_vertices = PyList_New(self->n_vertices);
+
+    for(int i = 0; i < new_polygon->n_vertices; i++) {
+        PyList_SetItem(
+            new_polygon->py_vertices, i,
+            Py_BuildValue("(ddd)", new_polygon->vertices[i].x, new_polygon->vertices[i].y, new_polygon->vertices[i].z)
+        );
+    }
+
+    return new_polygon;
+}
 
 PyObject *PyPolygon_str(PyPolygon *self) {
     std::string res("[");
@@ -447,6 +482,11 @@ PyObject *PyPolygon_str(PyPolygon *self) {
 }
 
 static PyMethodDef PyPolygon_methods[] = {
+    {
+        "copy",
+        (PyCFunction)PyPolygon_copy, METH_NOARGS,
+        "Makes a copy of this object"
+    },
     {
         "getOriginalEnvelope",
         (PyCFunction)PyPolygon_getOriginalEnvelope, METH_NOARGS,

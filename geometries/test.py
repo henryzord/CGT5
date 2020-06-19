@@ -40,13 +40,6 @@ def test_envelope_collision_detection(axes: np.array, base_index: int):
 
 
 def test_map_insertion(axes: np.array, fig, base_index: int):
-    some_polygons = [
-        Polygon([(0, 4), (3, 0), (4, 3)]),
-        Polygon([(3, 0), (7, 2), (4, 3)]),
-        Polygon([(4, 3), (7, 2), (7, 5)]),
-        Polygon([(0, 4), (4, 3), (3, 7)]),
-        Polygon([(4, 3), (3, 7), (7, 5)])
-    ]
 
     axes[base_index].set_xlim(-1, 8)
     axes[base_index].set_ylim(-1, 8)
@@ -54,8 +47,15 @@ def test_map_insertion(axes: np.array, fig, base_index: int):
     point = (3, 2)
     pivot = (4, 3)
 
-    # myMap = Map(polygons=some_polygons)
-    polygons_plot_data = [np.array(pol.vertices)[:, :2].astype(np.float32) for pol in some_polygons]
+    myMap = Map(polygons=[
+        Polygon([(0, 4), (3, 0), (4, 3)]),
+        Polygon([(3, 0), (7, 2), (4, 3)]),
+        Polygon([(4, 3), (7, 2), (7, 5)]),
+        Polygon([(0, 4), (4, 3), (3, 7)]),
+        Polygon([(4, 3), (3, 7), (7, 5)])
+    ])
+
+    polygons_plot_data = [np.array(pol.vertices)[:, :2].astype(np.float32) for pol in myMap.polygons]
 
     # generates data for current time
     def data_gen():
@@ -88,9 +88,7 @@ def test_map_insertion(axes: np.array, fig, base_index: int):
         patches = [axes[base_index].scatter(p[0], p[1], ec='black', c='white')]
 
         for i, original_data in enumerate(polygons_plot_data):
-            inside_index = -1 if not some_polygons[i].isInside(p) else i
-
-            if inside_index != -1:
+            if myMap.checkInside(p) == i:
                 pltpol0 = pltPolygon(original_data, fill=True, color='#88d2db', ec='black', alpha=0.4, zorder=0)
             else:
                 pltpol0 = pltPolygon(original_data, fill=False, ec='black', alpha=0.4, zorder=0)

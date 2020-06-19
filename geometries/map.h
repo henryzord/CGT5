@@ -18,7 +18,6 @@
 typedef struct {
     PyObject_HEAD
     int n_polygons;
-    PyPolygon **polygons;
     int n_slabs;
     double *slabs;
     PyObject *py_slabs;
@@ -38,32 +37,51 @@ static int PyMap_init(PyMap *self, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    self->n_polygons = (int)PyList_Size(py_polygons);
-    self->polygons = (PyPolygon**)malloc(sizeof(PyPolygon*) * self->n_polygons);
-    self->py_polygons = py_polygons;
+    // TODO exception in map construction
 
-    for(int i = 0; i < self->n_polygons; i++) {
-        self->polygons[i] = (PyPolygon*)PyList_GetItem(py_polygons, i);
-    }
+    self->n_polygons = (int)PyList_Size(py_polygons);
+    self->py_polygons = PyList_New(self->n_polygons);
 
     std::vector<Vetor> limits;
-
-    double absoluteLower = self->polygons[0]->vertices[0].y, absoluteUpper = self->polygons[0]->vertices[0].y;
+    double absoluteLower, absoluteUpper;
     for(int i = 0; i < self->n_polygons; i++) {
-        double lower = -1.0, upper = -1.0;
-        for(int j = 0; j < self->polygons[i]->n_vertices; j++) {
+        PyPolygon *ref = (PyPolygon*)PyList_GetItem(py_polygons, i);
+        PyList_SetItem(self->py_polygons, i, (PyObject*)PyPolygon_copy(ref));
+
+        if(i == 0) {
+            absoluteLower = ref->vertices[0].y;
+            absoluteUpper = ref->vertices[0].y;
+        }
+        double upper, lower;
+        for(int j = 0; j < ref->n_vertices; j++) {
             if(j == 0) {
-                lower = self->polygons[i]->vertices[j].y;
-                upper = self->polygons[i]->vertices[j].y;
+                upper = ref->vertices[j].y;
+                lower = ref->vertices[j].y;
             } else {
-                lower = fmin(lower, self->polygons[i]->vertices[j].y);
-                upper = fmax(upper, self->polygons[i]->vertices[j].y);
-                absoluteLower = fmin(absoluteLower, lower);
-                absoluteUpper = fmax(absoluteUpper, upper);
+                lower = fmin(lower, ref->vertices[j].y);
+                upper = fmax(upper, ref->vertices[j].y);
             }
         }
+        absoluteLower = fmin(absoluteLower, lower);
+        absoluteUpper = fmax(absoluteUpper, upper);
         limits.push_back(Vetor(lower, upper));
     }
+
+//    for(int i = 0; i < self->n_polygons; i++) {
+//        double lower = -1.0, upper = -1.0;
+//        for(int j = 0; j < self->polygons[i]->n_vertices; j++) {
+//            if(j == 0) {
+//                lower = self->polygons[i]->vertices[j].y;
+//                upper = self->polygons[i]->vertices[j].y;
+//            } else {
+//                lower = fmin(lower, self->polygons[i]->vertices[j].y);
+//                upper = fmax(upper, self->polygons[i]->vertices[j].y);
+//            }
+//            absoluteLower = fmin(absoluteLower, lower);
+//            absoluteUpper = fmax(absoluteUpper, upper);
+//        }
+//        limits.push_back(Vetor(lower, upper));
+//    }
 
     self->slabs = new double [N_VERTICES_SLAB];
     self->py_slabs = PyList_New(N_VERTICES_SLAB);
@@ -87,9 +105,6 @@ static int PyMap_init(PyMap *self, PyObject *args, PyObject *kwargs) {
 }
 
 static void PyMap_dealloc(PyMap * self) {
-    for(int i = 0; i < self->n_polygons; i++) {
-        Py_DECREF(self->polygons[i]);
-    }
     Py_DECREF(self->py_slabs);
     Py_DECREF(self->py_polygons);
     free(self->slabs);
@@ -132,7 +147,10 @@ PyObject *PyMap_checkInside(PyMap *self, PyObject *args, PyObject *kwargs) {
 
     // for each polygon in that region
     for(int j = 0; j < indices.size(); j++) {
-        res = PyPolygon_isInside(self->polygons[indices[j]], other_args, other_kwargs);
+        PyPolygon *ref = (PyPolygon*)PyList_GetItem(self->py_polygons, indices[j]);
+        Py_INCREF(ref);
+        res = PyPolygon_isInside(ref, other_args, other_kwargs);
+        Py_DECREF(ref);
         if(res == Py_True) {
             return Py_BuildValue("i", indices[j]);
         }
