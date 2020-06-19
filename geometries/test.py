@@ -103,38 +103,6 @@ def test_map_insertion(axes: np.array, fig, base_index: int):
 
     return axes, base_index + 1
 
-# def test_map_insertion(axes: np.array, fig, base_index: int):
-#     some_polygons = [
-#         Polygon([(0, 4), (3, 0), (4, 3)]),
-#         Polygon([(3, 0), (7, 2), (4, 3)]),
-#         Polygon([(4, 3), (7, 2), (7, 5)]),
-#         Polygon([(0, 4), (4, 3), (3, 7)]),
-#         Polygon([(4, 3), (3, 7), (7, 5)])
-#     ]
-#
-#     axes[base_index].set_xlim(-1, 8)
-#     axes[base_index].set_ylim(-1, 8)
-#
-#     print('rotated:', rotatePoint((1, 0), (0, 0), 3.14/2))
-#
-#     some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
-#
-#     myMap = Map(polygons=some_polygons)
-#
-#     for pol in myMap.polygons:
-#         original_data = np.array(pol.vertices)[:, :2].astype(np.float32)
-#
-#         pltpol0 = pltPolygon(original_data, fill=False, ec='black', alpha=0.4, zorder=0)
-#         axes[base_index].add_patch(pltpol0)
-#
-#         axes[base_index].set_axis_off()
-#
-#     for some_point in some_points:
-#         inside_index = myMap.checkInside(some_point)
-#         color = '#88d2db' if inside_index != -1 else '#e3a3d5'
-#
-#         axes[base_index].scatter(some_point[0], some_point[1], c=color)
-
 
 def test_convex_hull(axes: np.array, base_index: int):
 
@@ -204,10 +172,9 @@ def main():
     axes = np.ravel(axes)
 
     base_index = 0
-    # TODO reactivate
-    # axes, base_index = test_points_inside_polygons(axes, base_index=base_index)
-    # axes, base_index = test_convex_hull(axes, base_index=base_index)
-    # axes, base_index = test_envelope_collision_detection(axes, base_index=base_index)
+    axes, base_index = test_points_inside_polygons(axes, base_index=base_index)
+    axes, base_index = test_convex_hull(axes, base_index=base_index)
+    axes, base_index = test_envelope_collision_detection(axes, base_index=base_index)
     axes, base_index = test_map_insertion(axes, fig=fig, base_index=base_index)
 
     plt.show()
