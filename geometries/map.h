@@ -88,7 +88,7 @@ static int PyMap_init(PyMap *self, PyObject *args, PyObject *kwargs) {
 
 static void PyMap_dealloc(PyMap * self) {
     for(int i = 0; i < self->n_polygons; i++) {
-        Py_DECREF(&self->polygons[i]);
+        Py_DECREF(self->polygons[i]);
     }
     Py_DECREF(self->py_slabs);
     Py_DECREF(self->py_polygons);
@@ -108,18 +108,17 @@ PyObject *PyMap_checkInside(PyMap *self, PyObject *args, PyObject *kwargs) {
     if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O!", keywords, &PyTuple_Type, &py_point)) {
         return NULL;
     }
-
+    Py_INCREF(py_point);
     Vetor point = readPoint(py_point);
+    Py_DECREF(py_point);
 
     int index = -1;
     for(int i = 0; i < self->n_slabs; i++) {
-        if(point.y <= self->slabs[i]) { // TODO flipped comparison
+        if(point.y <= self->slabs[i]) {
             index = i;
             break;
         }
     }
-    Py_INCREF(&PyMapType);
-
     if(index == -1) {
         return Py_BuildValue("i", -1);
     }
@@ -138,6 +137,10 @@ PyObject *PyMap_checkInside(PyMap *self, PyObject *args, PyObject *kwargs) {
             return Py_BuildValue("i", indices[j]);
         }
     }
+    Py_DECREF(res);
+    Py_DECREF(other_args);
+    Py_DECREF(other_kwargs);
+
     return Py_BuildValue("i", -1);
 }
 

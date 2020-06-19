@@ -28,17 +28,10 @@
 //          class method, or being a static method of a class.
 // ml_doc:  Contents of this method's docstring
 static PyMethodDef module_methods[] = {
-//{
-//    "isInsideConcavePolygon", isInsideConcavePolygon, METH_VARARGS,
-//    "Checks whether a point is inside a concave polygon"
-//    }, {
-//    "isInsideConvexPolygon", isInsideConvexPolygon, METH_VARARGS,
-//    "Checks whether a point is inside a convex polygon"
-//    }, {
-//    {
-//        "slabAlgorithm", slabAlgorithm, METH_VARARGS,
-//        "Checks in which polygon a point is inside based on the Slab Algorithm"
-//    },
+{
+    "rotatePoint", (PyCFunction)Py_rotatePoint, METH_VARARGS | METH_KEYWORDS,
+    "Rotates a point given a pivot"
+    },
     {NULL, NULL, 0, NULL}
 };
 

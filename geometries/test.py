@@ -1,32 +1,141 @@
 from geometries import Polygon, Map
+from geometries import rotatePoint
 from matplotlib import pyplot as plt
 from matplotlib.patches import Polygon as pltPolygon
+from matplotlib import animation
 import numpy as np
 
 
 def test_envelope_collision_detection(axes: np.array, base_index: int):
     # plots envelope
     polA = Polygon([(2, 3), (3, 2), (4, 3)])
+    envA = polA.getEnvelope()
     polB = Polygon([(2.75, 4), (2, 6), (4, 5)])
-    polC = Polygon([(2, 5), (3, 4), (4, 5)])
+    envB = polB.getEnvelope()
+    polC = Polygon([(2, 4.5), (3, 3.5), (4, 4.5)])
+    envC = polC.getEnvelope()
     envelope = np.array(polA.getEnvelope())
 
     colorAB = '#e3a3d5' if polA.checkEnvelopeIntersection(polB) else '#88d2db'
     colorBC = '#e3a3d5' if polB.checkEnvelopeIntersection(polC) else '#88d2db'
 
     axes[base_index].add_patch(pltPolygon(np.array(polA.vertices)[:, :2].astype(np.float32), fill=True, color=colorAB, alpha=0.4))
+    axes[base_index].add_patch(pltPolygon(np.array(envA)[:, :2].astype(np.float32), fill=False, color='black', alpha=0.4))
     axes[base_index].add_patch(pltPolygon(np.array(polB.vertices)[:, :2].astype(np.float32), fill=True, color=colorAB, alpha=0.4))
+    axes[base_index].add_patch(pltPolygon(np.array(envB)[:, :2].astype(np.float32), fill=False, color='black', alpha=0.4))
     axes[base_index].set_xlim(0, 6)
     axes[base_index].set_ylim(0, 7)
     axes[base_index].set_axis_off()
 
     axes[base_index + 1].add_patch(pltPolygon(np.array(polB.vertices)[:, :2].astype(np.float32), fill=True, color=colorBC, alpha=0.4))
+    axes[base_index + 1].add_patch(pltPolygon(np.array(envB)[:, :2].astype(np.float32), fill=False, color='black', alpha=0.4))
     axes[base_index + 1].add_patch(pltPolygon(np.array(polC.vertices)[:, :2].astype(np.float32), fill=True, color=colorBC, alpha=0.4))
+    axes[base_index + 1].add_patch(pltPolygon(np.array(envC)[:, :2].astype(np.float32), fill=False, color='black', alpha=0.4))
+
     axes[base_index + 1].set_xlim(0, 6)
     axes[base_index + 1].set_ylim(0, 7)
     axes[base_index + 1].set_axis_off()
 
     return axes, base_index + 2
+
+
+def test_map_insertion(axes: np.array, fig, base_index: int):
+    some_polygons = [
+        Polygon([(0, 4), (3, 0), (4, 3)]),
+        Polygon([(3, 0), (7, 2), (4, 3)]),
+        Polygon([(4, 3), (7, 2), (7, 5)]),
+        Polygon([(0, 4), (4, 3), (3, 7)]),
+        Polygon([(4, 3), (3, 7), (7, 5)])
+    ]
+
+    axes[base_index].set_xlim(-1, 8)
+    axes[base_index].set_ylim(-1, 8)
+
+    point = (3, 2)
+    pivot = (4, 3)
+
+    # myMap = Map(polygons=some_polygons)
+    polygons_plot_data = [np.array(pol.vertices)[:, :2].astype(np.float32) for pol in some_polygons]
+
+    # generates data for current time
+    def data_gen():
+        t = data_gen.t
+        count = 0
+        while count < 360:
+            count += 15
+            t += 0.05
+            new_point = rotatePoint(point, pivot, (3.14 * count)/180.0)
+            yield t, new_point
+
+    data_gen.t = 0
+
+    # intialize two line objects (one in each axes)
+    sct = axes[base_index].scatter([], [], lw=2)
+
+    # the same axes initalizations as before (just now we do it for both of them)
+
+    axes[base_index].set_axis_off()
+
+    # initialize the data arrays
+
+    def run(data):
+        # update the data
+        t, p = data
+
+        # inside_index = myMap.checkInside(p)
+        # inside_index = -1
+
+        patches = [axes[base_index].scatter(p[0], p[1], ec='black', c='white')]
+
+        for i, original_data in enumerate(polygons_plot_data):
+            inside_index = -1 if not some_polygons[i].isInside(p) else i
+
+            if inside_index != -1:
+                pltpol0 = pltPolygon(original_data, fill=True, color='#88d2db', ec='black', alpha=0.4, zorder=0)
+            else:
+                pltpol0 = pltPolygon(original_data, fill=False, ec='black', alpha=0.4, zorder=0)
+
+            patches += [axes[base_index].add_patch(pltpol0)]
+
+        # axes[base_index].figure.canvas.draw()
+
+        return patches
+
+    ani = animation.FuncAnimation(fig, run, data_gen, blit=True, interval=100, repeat=True)
+
+    return axes, base_index + 1
+
+# def test_map_insertion(axes: np.array, fig, base_index: int):
+#     some_polygons = [
+#         Polygon([(0, 4), (3, 0), (4, 3)]),
+#         Polygon([(3, 0), (7, 2), (4, 3)]),
+#         Polygon([(4, 3), (7, 2), (7, 5)]),
+#         Polygon([(0, 4), (4, 3), (3, 7)]),
+#         Polygon([(4, 3), (3, 7), (7, 5)])
+#     ]
+#
+#     axes[base_index].set_xlim(-1, 8)
+#     axes[base_index].set_ylim(-1, 8)
+#
+#     print('rotated:', rotatePoint((1, 0), (0, 0), 3.14/2))
+#
+#     some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
+#
+#     myMap = Map(polygons=some_polygons)
+#
+#     for pol in myMap.polygons:
+#         original_data = np.array(pol.vertices)[:, :2].astype(np.float32)
+#
+#         pltpol0 = pltPolygon(original_data, fill=False, ec='black', alpha=0.4, zorder=0)
+#         axes[base_index].add_patch(pltpol0)
+#
+#         axes[base_index].set_axis_off()
+#
+#     for some_point in some_points:
+#         inside_index = myMap.checkInside(some_point)
+#         color = '#88d2db' if inside_index != -1 else '#e3a3d5'
+#
+#         axes[base_index].scatter(some_point[0], some_point[1], c=color)
 
 
 def test_convex_hull(axes: np.array, base_index: int):
@@ -97,41 +206,13 @@ def main():
     axes = np.ravel(axes)
 
     base_index = 0
-    axes, base_index = test_points_inside_polygons(axes, base_index=base_index)
-    axes, base_index = test_convex_hull(axes, base_index=base_index)
-    axes, base_index = test_envelope_collision_detection(axes, base_index=base_index)
-
-
+    # TODO reactivate
+    # axes, base_index = test_points_inside_polygons(axes, base_index=base_index)
+    # axes, base_index = test_convex_hull(axes, base_index=base_index)
+    # axes, base_index = test_envelope_collision_detection(axes, base_index=base_index)
+    axes, base_index = test_map_insertion(axes, fig=fig, base_index=base_index)
 
     plt.show()
-    exit(0)
-
-    # ------------------------------------------- #
-
-    fig, ax = plt.subplots()
-
-    some_polygons = [
-        Polygon([(0, 4), (3, 0), (4, 3)]),
-        Polygon([(3, 0), (7, 2), (4, 3)]),
-        Polygon([(4, 3), (7, 2), (7, 5)]),
-        Polygon([(0, 4), (4, 3), (3, 7)]),
-        Polygon([(4, 3), (3, 7), (7, 5)])
-    ]
-
-    some_points = [(3, 2), (5, 2), (6, 3), (2, 5), (5, 5)]
-    # some_npy_points = np.array(some_points)
-    # ax.scatter(some_npy_points[:, 0], some_npy_points[:, 1])
-    # for pol in some_polygons:
-    #     for i in range(1, pol.n_vertices):
-    #         ax.plot([pol.vertices[i-1][0], pol.vertices[i][0]], [pol.vertices[i-1][1], pol.vertices[i][1]], c='black')
-    #     ax.plot([pol.vertices[-1][0], pol.vertices[0][0]], [pol.vertices[-1][1], pol.vertices[0][1]], c='black')
-
-    myMap = Map(polygons=some_polygons)
-
-    for point in some_points:
-        print('point %r is inside polygon %d' % (point, myMap.checkInside(point)))
-
-    # plt.show()
 
 
 if __name__ == '__main__':

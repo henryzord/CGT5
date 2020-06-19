@@ -174,22 +174,26 @@ void PyPolygon_addEnvelope(PyPolygon *self) {
     double meanX = 0, meanY = 0;
     for(int i = 0; i < self->n_vertices; i++) {
         Vetor rotated = rotatePointArbitrary(self->vertices[i], closest, signal * rotAngle);
+
         meanX += rotated.x;
         meanY += rotated.y;
-        if(rotated.x > upperX) {
+
+        if(rotated.x > upperX || i == 0) {
             upperX = rotated.x;
-        } else if(rotated.x < lowerX) {
+        }
+        if(rotated.x < lowerX || i == 0) {
             lowerX = rotated.x;
         }
-        if(rotated.y > upperY) {
+        if(rotated.y > upperY || i == 0) {
             upperY = rotated.y;
-        } else if(rotated.y < lowerY) {
+        }
+        if(rotated.y < lowerY || i == 0) {
             lowerY = rotated.y;
         }
     }
-    self->bbCenter = Vetor(meanX / (double)self->n_vertices, meanY / (double)self->n_vertices);
     self->bbHalfHeight = (upperY - lowerY)/2.0;
-    self->bbHalfWidth = hypotenuse / 2.0;
+    self->bbHalfWidth = (upperX - lowerX)/2.0;
+    self->bbCenter = Vetor(lowerX + self->bbHalfWidth, lowerY + self->bbHalfHeight);
     self->allignAngle = signal * rotAngle;
     self->pivotPoint = closest;
 }
@@ -200,6 +204,7 @@ static int PyPolygon_init(PyPolygon *self, PyObject *args, PyObject *kwargs) {
     if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O!", keywords, &PyList_Type, &thisPolygon)) {
         return NULL;
     }
+    Py_INCREF(thisPolygon);
 
     int num_vert = (int)PyList_Size(thisPolygon);
     self->vertices = new Vetor [num_vert];
@@ -207,6 +212,7 @@ static int PyPolygon_init(PyPolygon *self, PyObject *args, PyObject *kwargs) {
 
     for(int j = 0; j < num_vert; j++) {
         PyObject *vertex = PyList_GetItem(thisPolygon, j);
+        Py_INCREF(vertex);
 
         double x = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 0));
         double y = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 1));
@@ -215,6 +221,7 @@ static int PyPolygon_init(PyPolygon *self, PyObject *args, PyObject *kwargs) {
         if(tuple_size > 2) {
             z = (double)PyFloat_AsDouble(PyTuple_GetItem(vertex, 2));
         }
+        Py_DECREF(vertex);
         self->vertices[j] = Vetor(x, y, z);
         PyList_SetItem(self->py_vertices, j, Py_BuildValue("(ddd)", x, y, z));
     }
@@ -222,6 +229,8 @@ static int PyPolygon_init(PyPolygon *self, PyObject *args, PyObject *kwargs) {
     self->isThisConvex = isConvex(self->n_vertices, self->vertices);
 
     PyPolygon_addEnvelope(self);
+    Py_DECREF(thisPolygon);
+
     return 1;
 }
 
@@ -237,28 +246,65 @@ static PyObject *PyPolygon_checkEnvelopeIntersection(PyPolygon *self, PyObject *
     if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O!", keywords, &PyPolygonType, &other)) {
         return NULL;
     }
+    Py_INCREF(other);
 
     for(int i = 0; i < other->n_vertices; i++) {
         Vetor rotated = rotatePointArbitrary(other->vertices[i], self->pivotPoint, self->allignAngle);
-        if((rotated.x >= (self->bbCenter.x - self->bbHalfWidth)) || (rotated.x <= (self->bbCenter.x + self->bbHalfWidth))) {
-            if((rotated.y >= (self->bbCenter.y - self->bbHalfHeight)) || (rotated.y <= (self->bbCenter.y + self->bbHalfHeight))) {
+        if((rotated.x >= (self->bbCenter.x - self->bbHalfWidth)) && (rotated.x <= (self->bbCenter.x + self->bbHalfWidth))) {
+            if((rotated.y >= (self->bbCenter.y - self->bbHalfHeight)) && (rotated.y <= (self->bbCenter.y + self->bbHalfHeight))) {
+                Py_DECREF(other);
                 return Py_True;
             }
         }
     }
+    Py_DECREF(other);
     return Py_False;
 }
 
 static Vetor readPoint(PyObject *py_point) {
-    double xp = (double)PyFloat_AsDouble(PyTuple_GetItem(py_point, 0));
-    double yp = (double)PyFloat_AsDouble(PyTuple_GetItem(py_point, 1));
-    double zp = 0;
     int tuple_size = (int)PyTuple_Size(py_point);
+
+    PyObject *py_x = PyTuple_GetItem(py_point, 0);
+    PyObject *py_y = PyTuple_GetItem(py_point, 1);
+    Py_INCREF(py_x);
+    Py_INCREF(py_y);
+    double xp = (double)PyFloat_AsDouble(py_x);
+    double yp = (double)PyFloat_AsDouble(py_y);
+    Py_DECREF(py_x);
+    Py_DECREF(py_y);
+    double zp = 0;
+
     if(tuple_size > 2) {
-        zp = (double)PyFloat_AsDouble(PyTuple_GetItem(py_point, 2));
+        PyObject *py_z = PyTuple_GetItem(py_point, 2);
+        Py_INCREF(py_z);
+        zp = (double)PyFloat_AsDouble(py_z);
+        Py_DECREF(py_z);
     }
     Vetor point(xp, yp, zp);
     return point;
+}
+
+PyObject *Py_rotatePoint(PyObject *self, PyObject *args, PyObject *kwargs) {
+    static char *keywords[] = {"point", "pivot", "radians", NULL};
+    PyObject *py_point, *py_pivot;
+    double radians;
+    if(!PyArg_ParseTupleAndKeywords(
+        args, kwargs, "O!O!d", keywords,
+        &PyTuple_Type, &py_point,
+        &PyTuple_Type, &py_pivot,
+        &radians
+    )) {
+        return NULL;
+    }
+    Py_INCREF(py_point);
+    Py_INCREF(py_pivot);
+    Vetor point = readPoint(py_point);
+    Vetor pivot = readPoint(py_pivot);
+    Vetor rotated = rotatePointArbitrary(point, pivot, radians);
+    Py_DECREF(py_point);
+    Py_DECREF(py_pivot);
+
+    return Py_BuildValue("(dd)", rotated.x, rotated.y);
 }
 
 static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *kwargs) {
@@ -268,8 +314,9 @@ static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *k
     if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O!", keywords, &PyTuple_Type, &py_point)) {
         return NULL;
     }
-
+    Py_INCREF(py_point);
     Vetor point = readPoint(py_point);
+    Py_DECREF(py_point);
 
     int isInside;
     if(self->isThisConvex) {
@@ -280,7 +327,6 @@ static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *k
     if(isInside) {
         return Py_True;
     }
-    Py_INCREF(&PyPolygonType);
     return Py_False;
 }
 
@@ -348,7 +394,6 @@ static PyPolygon *PyPolygon_toConvexHull(PyPolygon *self) {
             Py_BuildValue("(ddd)", new_points[i].x, new_points[i].y, new_points[i].z)
         );
     }
-    Py_INCREF(&PyPolygonType);  // TODO unsure?
 
     return new_polygon;
 }
@@ -366,9 +411,25 @@ static PyObject *PyPolygon_getEnvelope(PyPolygon *self) {
     PyList_SetItem(corners, 2, Py_BuildValue("(dd)", upperRight.x, upperRight.y));
     PyList_SetItem(corners, 3, Py_BuildValue("(dd)", lowerRight.x, lowerRight.y));
 
-    Py_INCREF(&PyPolygonType);
     return corners;
 }
+
+static PyObject *PyPolygon_getOriginalEnvelope(PyPolygon *self) {
+    PyObject *corners = PyList_New(4);
+
+    Vetor lowerLeft = self->bbCenter + Vetor(-self->bbHalfWidth, -self->bbHalfHeight);
+    Vetor upperLeft = self->bbCenter + Vetor(-self->bbHalfWidth, self->bbHalfHeight);
+    Vetor lowerRight = self->bbCenter + Vetor(self->bbHalfWidth, -self->bbHalfHeight);
+    Vetor upperRight = self->bbCenter + Vetor(self->bbHalfWidth, self->bbHalfHeight);
+
+    PyList_SetItem(corners, 0, Py_BuildValue("(dd)", lowerLeft.x, lowerLeft.y));
+    PyList_SetItem(corners, 1, Py_BuildValue("(dd)", upperLeft.x, upperLeft.y));
+    PyList_SetItem(corners, 2, Py_BuildValue("(dd)", upperRight.x, upperRight.y));
+    PyList_SetItem(corners, 3, Py_BuildValue("(dd)", lowerRight.x, lowerRight.y));
+
+    return corners;
+}
+
 
 
 PyObject *PyPolygon_str(PyPolygon *self) {
@@ -387,9 +448,14 @@ PyObject *PyPolygon_str(PyPolygon *self) {
 
 static PyMethodDef PyPolygon_methods[] = {
     {
+        "getOriginalEnvelope",
+        (PyCFunction)PyPolygon_getOriginalEnvelope, METH_NOARGS,
+        "Gets the original, un-rotated envelope for this polygon. This envelope is the one used to check collisions"
+    },
+    {
         "getEnvelope",
         (PyCFunction)PyPolygon_getEnvelope, METH_NOARGS,
-        "Adds an envelope to this polygon"
+        "Get the envelope of this polygon"
     },
     {
         "isInside",
@@ -409,6 +475,7 @@ static PyMethodDef PyPolygon_methods[] = {
 };
 
 static PyMemberDef PyPolygon_members[] = {
+    {"allignAngle", T_DOUBLE, offsetof(PyPolygon, allignAngle), 0, "Angle used to find bounding box"},
     {"n_vertices", T_INT, offsetof(PyPolygon, n_vertices), 0, "number of vertices of this polygon"},
     {"vertices", T_OBJECT, offsetof(PyPolygon, py_vertices), 0, "vertices of this polygon"},
     {"isThisConvex", T_BOOL, offsetof(PyPolygon, isThisConvex), 0, "whether this polygon is convex or not"},
