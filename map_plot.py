@@ -134,8 +134,6 @@ def main(map_path):
         polygons_plot_data += [np.array(abc).astype(np.float64)]
         polygons_obj += [Polygon(abc)]
 
-        # ax.add_patch(PolygonPatch(poly['geometry'], alpha=0.5, zorder=2, fc='#6699cc', ec='#6699cc'))
-
     polygons_plot_data = np.array(polygons_plot_data)
 
     x_lim = [reduce(min, map(lambda x: min(x[:, 0]), polygons_plot_data)), reduce(max, map(lambda x: max(x[:, 0]), polygons_plot_data))]
@@ -144,8 +142,8 @@ def main(map_path):
     ax.set_xlim(*x_lim)
     ax.set_ylim(*y_lim)
 
-    init_pos = np.array((x_lim[0] + 1, y_lim[0] + 1), dtype=np.float64)
-    speed = np.array([0.25, 0.3], dtype=np.float64)
+    init_pos = np.array((x_lim[0] + 4, y_lim[0] + 3), dtype=np.float64)
+    speed = np.array([0.15, 0.2], dtype=np.float64)
 
     myMap = Map(polygons=polygons_obj)
 
@@ -183,7 +181,7 @@ def main(map_path):
 
     # the same axes initalizations as before (just now we do it for both of them)
 
-    ax.set_axis_off()
+    # ax.set_axis_off()
 
     # initialize the data arrays
 
@@ -197,9 +195,7 @@ def main(map_path):
         patches = [ax.scatter(p[0], p[1], ec='black', c='white')]
 
         for i, original_data in enumerate(polygons_plot_data):
-            inside_index = -1 if not polygons_obj[i].isInside(tuple(p)) else i
-        #     inside_index = myMap.checkInside(tuple(p))
-            print(inside_index)
+            inside_index = myMap.checkInside(tuple(p))
             if inside_index == i:
                 pltpol0 = pltPolygon(original_data, fill=True, color='#88d2db', ec='black', alpha=0.4, zorder=0)
             else:
