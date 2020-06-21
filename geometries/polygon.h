@@ -437,9 +437,6 @@ static PyObject *PyPolygon_getOriginalEnvelope(PyPolygon *self) {
 
 static PyPolygon *PyPolygon_copy(PyPolygon *self) {
 
-//    Vetor *vertices;
-//    PyObject *py_vertices;
-
     PyPolygon *new_polygon = PyObject_New(PyPolygon, &PyPolygonType);
     new_polygon->n_vertices = self->n_vertices;
 
@@ -448,7 +445,7 @@ static PyPolygon *PyPolygon_copy(PyPolygon *self) {
         new_polygon->vertices[i] = self->vertices[i];
     }
 
-    new_polygon->isThisConvex = true;  // it has to be
+    new_polygon->isThisConvex = self->isThisConvex;
     new_polygon->pivotPoint = self->pivotPoint;
     new_polygon->bbCenter = self->bbCenter;
     new_polygon->bbHalfHeight = self->bbHalfHeight;

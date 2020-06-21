@@ -37,8 +37,6 @@ static int PyMap_init(PyMap *self, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    // TODO exception in map construction
-
     self->n_polygons = (int)PyList_Size(py_polygons);
     self->py_polygons = PyList_New(self->n_polygons);
 
@@ -46,6 +44,7 @@ static int PyMap_init(PyMap *self, PyObject *args, PyObject *kwargs) {
     double absoluteLower, absoluteUpper;
     for(int i = 0; i < self->n_polygons; i++) {
         PyPolygon *ref = (PyPolygon*)PyList_GetItem(py_polygons, i);
+        Py_INCREF((PyObject*)ref);
         PyList_SetItem(self->py_polygons, i, (PyObject*)PyPolygon_copy(ref));
 
         if(i == 0) {
@@ -65,27 +64,13 @@ static int PyMap_init(PyMap *self, PyObject *args, PyObject *kwargs) {
         absoluteLower = fmin(absoluteLower, lower);
         absoluteUpper = fmax(absoluteUpper, upper);
         limits.push_back(Vetor(lower, upper));
+        Py_DECREF((PyObject*)ref);
     }
-
-//    for(int i = 0; i < self->n_polygons; i++) {
-//        double lower = -1.0, upper = -1.0;
-//        for(int j = 0; j < self->polygons[i]->n_vertices; j++) {
-//            if(j == 0) {
-//                lower = self->polygons[i]->vertices[j].y;
-//                upper = self->polygons[i]->vertices[j].y;
-//            } else {
-//                lower = fmin(lower, self->polygons[i]->vertices[j].y);
-//                upper = fmax(upper, self->polygons[i]->vertices[j].y);
-//            }
-//            absoluteLower = fmin(absoluteLower, lower);
-//            absoluteUpper = fmax(absoluteUpper, upper);
-//        }
-//        limits.push_back(Vetor(lower, upper));
-//    }
 
     self->slabs = new double [N_VERTICES_SLAB];
     self->py_slabs = PyList_New(N_VERTICES_SLAB);
     self->n_slabs = N_VERTICES_SLAB;
+
     double increment = (absoluteUpper - absoluteLower)/self->n_slabs;
     for(int i = 0; i < N_VERTICES_SLAB; i++) {
         self->slabs[i] = absoluteLower + i * increment;
@@ -94,7 +79,9 @@ static int PyMap_init(PyMap *self, PyObject *args, PyObject *kwargs) {
 
     for(int i = 0; i < self->n_slabs; i++) {
         std::vector<int> thisIndices;
-        for(int j = 0; j < limits.size(); j++) {
+        for(int j = 0; j < self->n_polygons; j++) {
+            // limits[j].x is lower y bound for polygon j
+            // limits[j].y is upper y bound for polygon j
             if((self->slabs[i] >= limits[j].x) && (self->slabs[i] <= limits[j].y)) {
                 thisIndices.push_back(j);
             }
@@ -128,6 +115,7 @@ PyObject *PyMap_checkInside(PyMap *self, PyObject *args, PyObject *kwargs) {
     Py_DECREF(py_point);
 
     int index = -1;
+
     for(int i = 0; i < self->n_slabs; i++) {
         if(point.y <= self->slabs[i]) {
             index = i;
@@ -135,8 +123,9 @@ PyObject *PyMap_checkInside(PyMap *self, PyObject *args, PyObject *kwargs) {
         }
     }
     if(index == -1) {
-        return Py_BuildValue("i", -1);
+        return Py_BuildValue("i", index);
     }
+
 
     // indices has the set of indices of polygons in that region
     std::vector<int> indices = self->slabsIndices[index];
@@ -145,21 +134,24 @@ PyObject *PyMap_checkInside(PyMap *self, PyObject *args, PyObject *kwargs) {
     PyTuple_SetItem(other_args, 0, py_point);
     PyObject *other_kwargs = PyDict_New();
 
+    int return_index = -1;
+
     // for each polygon in that region
     for(int j = 0; j < indices.size(); j++) {
         PyPolygon *ref = (PyPolygon*)PyList_GetItem(self->py_polygons, indices[j]);
         Py_INCREF(ref);
         res = PyPolygon_isInside(ref, other_args, other_kwargs);
         Py_DECREF(ref);
-        if(res == Py_True) {
-            return Py_BuildValue("i", indices[j]);
+        if(PyObject_IsTrue(res)) {
+            return_index = indices[j];
+            break;
         }
     }
     Py_DECREF(res);
-    Py_DECREF(other_args);
+//    Py_DECREF(other_args);  // seg fault
     Py_DECREF(other_kwargs);
 
-    return Py_BuildValue("i", -1);
+    return Py_BuildValue("i", return_index);
 }
 
 static PyMethodDef PyMap_methods[] = {
