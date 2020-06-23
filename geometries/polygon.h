@@ -240,6 +240,19 @@ static void PyPolygon_dealloc(PyPolygon * self) {
     Py_TYPE(self)->tp_free(self);
 }
 
+static PyObject *PyPolygon_checkPointEnvelopeIntersection(PyPolygon *self, Vetor point) {
+    Vetor rotated = rotatePointArbitrary(point, self->pivotPoint, self->allignAngle);
+    if((rotated.x >= (self->bbCenter.x - self->bbHalfWidth)) && (rotated.x <= (self->bbCenter.x + self->bbHalfWidth))) {
+        if((rotated.y >= (self->bbCenter.y - self->bbHalfHeight)) && (rotated.y <= (self->bbCenter.y + self->bbHalfHeight))) {
+            Py_INCREF(Py_True);
+            return Py_True;
+        }
+    }
+
+    Py_INCREF(Py_False);
+    return Py_False;
+}
+
 static PyObject *PyPolygon_checkEnvelopeIntersection(PyPolygon *self, PyObject *args, PyObject *kwargs) {
     static char *keywords[] = {"other", NULL};
     PyPolygon *other;
@@ -309,6 +322,11 @@ PyObject *Py_rotatePoint(PyObject *self, PyObject *args, PyObject *kwargs) {
     return Py_BuildValue("(dd)", rotated.x, rotated.y);
 }
 
+/**
+ * Método para verificar se um ponto está contido no polígono.
+ * Faz uma pré-checagem com bounding box; passando por essa checagem, aplica um algoritmo mais complexo
+ * de inserção em polígono, dependendo do formato do polígono (côncavo ou convexo).
+ */
 static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *kwargs) {
     PyObject *py_point;
 
@@ -319,6 +337,14 @@ static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *k
     Py_INCREF(py_point);
     Vetor point = readPoint(py_point);
     Py_DECREF(py_point);
+
+    PyObject *inside_envelope = PyPolygon_checkPointEnvelopeIntersection(self, point);
+
+    if(PyObject_IsTrue(inside_envelope)) {
+        Py_DECREF(inside_envelope);
+        Py_INCREF(Py_True);
+        return Py_True;
+    }
 
     int isInside;
     if(self->isThisConvex) {
