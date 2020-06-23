@@ -253,11 +253,13 @@ static PyObject *PyPolygon_checkEnvelopeIntersection(PyPolygon *self, PyObject *
         if((rotated.x >= (self->bbCenter.x - self->bbHalfWidth)) && (rotated.x <= (self->bbCenter.x + self->bbHalfWidth))) {
             if((rotated.y >= (self->bbCenter.y - self->bbHalfHeight)) && (rotated.y <= (self->bbCenter.y + self->bbHalfHeight))) {
                 Py_DECREF(other);
+                Py_INCREF(Py_True);
                 return Py_True;
             }
         }
     }
     Py_DECREF(other);
+    Py_INCREF(Py_False);
     return Py_False;
 }
 
@@ -325,8 +327,10 @@ static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *k
         isInside = isInsideConcave(self->n_vertices, self->vertices, point);
     }
     if(isInside) {
+        Py_INCREF(Py_True);
         return Py_True;
     }
+    Py_INCREF(Py_False);
     return Py_False;
 }
 
