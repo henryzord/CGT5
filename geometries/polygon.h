@@ -338,13 +338,13 @@ static PyObject *PyPolygon_isInside(PyPolygon *self, PyObject *args, PyObject *k
     Vetor point = readPoint(py_point);
     Py_DECREF(py_point);
 
-    PyObject *inside_envelope = PyPolygon_checkPointEnvelopeIntersection(self, point);
+//    PyObject *inside_envelope = PyPolygon_checkPointEnvelopeIntersection(self, point);
 
-    if(PyObject_IsTrue(inside_envelope)) {
-        Py_DECREF(inside_envelope);
-        Py_INCREF(Py_True);
-        return Py_True;
-    }
+//    if(PyObject_IsTrue(inside_envelope)) {
+//        Py_DECREF(inside_envelope);
+//        Py_INCREF(Py_True);
+//        return Py_True;
+//    }
 
     int isInside;
     if(self->isThisConvex) {
