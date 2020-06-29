@@ -68,7 +68,7 @@ per vertex. Implementation in file `map.h`, in constructor `PyMap_init`. Test is
 For a demonstration of slab algorithm in a map of Brazil, run script `map_plot.py`:
  
  ```bash
-python map_plot.py
+python  map_plot.py --map-path resources\Estados_do_Brasil 
 ``` 
 
 It should output an animated map, the same way as bullet `9` of previous section.
@@ -82,7 +82,7 @@ Finally, if instead of plotting, one desires to measure the differences in times
 is only required to pass parameter `--test-times` to `map_plot.py` script:
 
 ```bash
-python map_plot.py --test-times
+python  map_plot.py --map-path resources\Estados_do_Brasil --test-times
 ``` 
 
 It will then output to the terminal the result of 1000 executions of three different methods of testing inclusion of 
