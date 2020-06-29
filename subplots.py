@@ -4,9 +4,11 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import Polygon as pltPolygon
 from matplotlib import animation
 import numpy as np
+from datetime import datetime as dt
+from timeit import timeit
 
 
-def test_envelope_collision_detection(axes: np.array, base_index: int):
+def envelope_collision_detection(axes: np.array, base_index: int):
     # plots envelope
     polA = Polygon([(2, 3), (3, 2), (4, 3)])
     envA = polA.getEnvelope()
@@ -14,7 +16,7 @@ def test_envelope_collision_detection(axes: np.array, base_index: int):
     envB = polB.getEnvelope()
     polC = Polygon([(2, 4.5), (3, 3.5), (4, 4.5)])
     envC = polC.getEnvelope()
-    envelope = np.array(polA.getEnvelope())
+    # envelope = np.array(envA)
 
     colorAB = '#e3a3d5' if polA.checkEnvelopeIntersection(polB) else '#88d2db'
     colorBC = '#e3a3d5' if polB.checkEnvelopeIntersection(polC) else '#88d2db'
@@ -39,7 +41,7 @@ def test_envelope_collision_detection(axes: np.array, base_index: int):
     return axes, base_index + 2
 
 
-def test_map_insertion(axes: np.array, fig, base_index: int):
+def map_insertion(axes: np.array, fig, base_index: int):
 
     axes[base_index].set_xlim(-1, 8)
     axes[base_index].set_ylim(-1, 8)
@@ -104,7 +106,7 @@ def test_map_insertion(axes: np.array, fig, base_index: int):
     return axes, base_index + 1
 
 
-def test_convex_hull(axes: np.array, base_index: int):
+def convex_hull(axes: np.array, base_index: int):
 
     concavos = [Polygon([(2, 0), (2, 6), (7, 6), (7, 0), (5, 2)]), Polygon([(2, 0), (4, 6), (9, 4), (6, 0), (5, 2)])]
 
@@ -127,7 +129,7 @@ def test_convex_hull(axes: np.array, base_index: int):
     return axes, base_index + len(concavos)
 
 
-def test_points_inside_polygons(axes: np.array, base_index: int):
+def points_inside_polygons(axes: np.array, base_index: int):
     """
     Testa se um ponto está dentro de polígono côncavo/convexo.
 
@@ -167,15 +169,18 @@ def test_points_inside_polygons(axes: np.array, base_index: int):
     return axes, base_index + len(convexos) + len(concavos)
 
 
+
+
+
 def main():
     fig, axes = plt.subplots(nrows=3, ncols=3)
     axes = np.ravel(axes)
 
     base_index = 0
-    axes, base_index = test_points_inside_polygons(axes, base_index=base_index)
-    axes, base_index = test_convex_hull(axes, base_index=base_index)
-    axes, base_index = test_envelope_collision_detection(axes, base_index=base_index)
-    axes, base_index = test_map_insertion(axes, fig=fig, base_index=base_index)
+    axes, base_index = points_inside_polygons(axes, base_index=base_index)
+    axes, base_index = convex_hull(axes, base_index=base_index)
+    axes, base_index = envelope_collision_detection(axes, base_index=base_index)
+    axes, base_index = map_insertion(axes, fig=fig, base_index=base_index)
 
     plt.show()
 
